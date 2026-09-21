@@ -1,0 +1,15 @@
+# Root Netlify Configuration File for SmartLogix
+
+[build]
+  base = "src/frontend"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Single-Page Application (SPA) Client-Side Routing Redirects
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

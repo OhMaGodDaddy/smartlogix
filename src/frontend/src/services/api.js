@@ -1,10 +1,10 @@
 // SmartLogix Backend API Service Client
 
 const BACKEND_SERVICES = {
-  AUTH: 'http://localhost:5001/api/auth',
-  INVENTORY: 'http://localhost:5002/api/inventory',
-  VEHICLE: 'http://localhost:5003/api/vehicles',
-  NOTIFICATION: 'http://localhost:5004/api/notifications'
+  AUTH: import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:5001/api/auth',
+  INVENTORY: import.meta.env.VITE_INVENTORY_SERVICE_URL || 'http://localhost:5002/api/inventory',
+  VEHICLE: import.meta.env.VITE_VEHICLE_SERVICE_URL || 'http://localhost:5003/api/vehicles',
+  NOTIFICATION: import.meta.env.VITE_NOTIFICATION_SERVICE_URL || 'http://localhost:5004/api/notifications'
 };
 
 // Fallback Mock Data for UI Demonstration

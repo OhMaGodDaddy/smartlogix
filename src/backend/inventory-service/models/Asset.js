@@ -1,10 +1,11 @@
+const crypto = require('crypto');
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
 const Asset = sequelize.define('Asset', {
   id: {
     type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
+    defaultValue: () => crypto.randomUUID(),
     primaryKey: true
   },
   assetTag: {
@@ -29,9 +30,13 @@ const Asset = sequelize.define('Asset', {
     allowNull: false
   },
   currentHolderId: {
-    type: DataTypes.UUID,
+    type: DataTypes.STRING,
     allowNull: true,
     comment: 'User ID of current holder/borrower'
+  },
+  currentHolderName: {
+    type: DataTypes.STRING,
+    allowNull: true
   },
   status: {
     type: DataTypes.ENUM(

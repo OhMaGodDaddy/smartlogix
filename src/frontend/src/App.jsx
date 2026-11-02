@@ -12,6 +12,7 @@ import QRScanPage from './pages/QRScanPage';
 import RequestFormPage from './pages/RequestFormPage';
 import OfficerDashboard from './pages/OfficerDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import VehiclesPage from './pages/VehiclesPage';
 
 function App() {
   return (
@@ -24,7 +25,8 @@ function App() {
               <Route path="inventory" element={<InventoryPage />} />
               <Route path="logbook" element={<LogbookPage />} />
               <Route path="requests" element={<RequestsPage />} />
-              <Route path="vehicles" element={<OfficerDashboard />} />
+              <Route path="vehicles" element={<VehiclesPage />} />
+              <Route path="officer" element={<OfficerDashboard />} />
               <Route path="analytics" element={<AnalyticsDashboard />} />
               <Route path="qr-scan" element={<QRScanPage />} />
               <Route path="request" element={<RequestFormPage />} />

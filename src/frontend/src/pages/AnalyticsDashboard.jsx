@@ -1,16 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart3, PieChart, TrendingUp, AlertTriangle, Package, Clock } from 'lucide-react';
+import { BarChart3, TrendingUp, AlertTriangle, Package, CheckCircle } from 'lucide-react';
 import StatCard from '../components/StatCard';
 import { apiService } from '../services/api';
+import { isOverdue } from '../utils/format';
 
 const AnalyticsDashboard = () => {
   const [assets, setAssets] = useState([]);
   const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([apiService.getAssets(), apiService.getTransactions()]).then(([a, t]) => {
-      setAssets(a);
-      setTransactions(t);
+    Promise.all([
+      apiService.getAssets().catch(() => []),
+      apiService.getTransactions().catch(() => [])
+    ]).then(([a, t]) => {
+      setAssets(Array.isArray(a) ? a : []);
+      setTransactions(Array.isArray(t) ? t : []);
+      setLoading(false);
     });
   }, []);
 
@@ -19,24 +25,32 @@ const AnalyticsDashboard = () => {
   const borrowedCount = assets.filter(a => a.status === 'Borrowed').length;
   const reservedCount = assets.filter(a => a.status === 'Reserved').length;
   const maintenanceCount = assets.filter(a => a.status === 'Maintenance').length;
-  const overdueCount = transactions.filter(t => t.status === 'Overdue').length;
+  const overdueCount = transactions.filter(isOverdue).length;
 
   const utilizationRate = totalAssets > 0 ? Math.round(((borrowedCount + reservedCount) / totalAssets) * 100) : 0;
+
+  // Real category counts
+  const categoryCounts = assets.reduce((acc, a) => {
+    const cat = a.category || 'Uncategorized';
+    acc[cat] = (acc[cat] || 0) + 1;
+    return acc;
+  }, {});
+  const sortedCategories = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1]);
 
   return (
     <div>
       <div className="page-header">
         <div>
           <h1 className="page-title">Analytics & Logistics Metrics</h1>
-          <p className="page-subtitle">Real-time asset utilization, borrowing frequency, and inventory analytics</p>
+          <p className="page-subtitle">Real-time asset utilization, borrowing frequency, and inventory status breakdown</p>
         </div>
       </div>
 
       <div className="stats-grid">
-        <StatCard title="Total System Assets" value={totalAssets} icon={Package} color="#6366f1" />
-        <StatCard title="Asset Utilization Rate" value={`${utilizationRate}%`} icon={TrendingUp} color="#10b981" change="+5% vs last week" />
-        <StatCard title="Currently Borrowed" value={borrowedCount} icon={PieChart} color="#06b6d4" />
-        <StatCard title="Overdue Returns" value={overdueCount} icon={AlertTriangle} color="#ef4444" />
+        <StatCard title="Total System Assets" value={loading ? '—' : totalAssets} icon={Package} color="#6366f1" />
+        <StatCard title="Asset Utilization Rate" value={loading ? '—' : `${utilizationRate}%`} icon={TrendingUp} color="#10b981" />
+        <StatCard title="Currently Borrowed" value={loading ? '—' : borrowedCount} icon={CheckCircle} color="#06b6d4" />
+        <StatCard title="Overdue Returns" value={loading ? '—' : overdueCount} icon={AlertTriangle} color="#ef4444" />
       </div>
 
       <div className="grid-2">
@@ -44,80 +58,87 @@ const AnalyticsDashboard = () => {
         <div className="glass-card">
           <div className="glass-card-header">
             <h3 className="glass-card-title">Inventory Status Breakdown</h3>
-            <BarChart3 size={18} color="#a5b4fc" />
+            <BarChart3 size={18} color="var(--color-primary)" />
           </div>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginTop: '1rem' }}>
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.35rem' }}>
                 <span>Available Assets</span>
-                <strong style={{ color: '#34d399' }}>{availableCount} ({totalAssets ? Math.round((availableCount/totalAssets)*100) : 0}%)</strong>
+                <strong style={{ color: 'var(--color-secondary)' }}>
+                  {availableCount} ({totalAssets ? Math.round((availableCount/totalAssets)*100) : 0}%)
+                </strong>
               </div>
-              <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: '999px', height: '10px', overflow: 'hidden' }}>
-                <div style={{ background: '#10b981', width: `${totalAssets ? (availableCount/totalAssets)*100 : 0}%`, height: '100%' }}></div>
+              <div className="bar-track">
+                <div className="bar-fill" style={{ background: '#10b981', width: `${totalAssets ? (availableCount/totalAssets)*100 : 0}%` }}></div>
               </div>
             </div>
 
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.35rem' }}>
                 <span>Borrowed Equipment</span>
-                <strong style={{ color: '#22d3ee' }}>{borrowedCount} ({totalAssets ? Math.round((borrowedCount/totalAssets)*100) : 0}%)</strong>
+                <strong style={{ color: '#06b6d4' }}>
+                  {borrowedCount} ({totalAssets ? Math.round((borrowedCount/totalAssets)*100) : 0}%)
+                </strong>
               </div>
-              <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: '999px', height: '10px', overflow: 'hidden' }}>
-                <div style={{ background: '#06b6d4', width: `${totalAssets ? (borrowedCount/totalAssets)*100 : 0}%`, height: '100%' }}></div>
+              <div className="bar-track">
+                <div className="bar-fill" style={{ background: '#06b6d4', width: `${totalAssets ? (borrowedCount/totalAssets)*100 : 0}%` }}></div>
               </div>
             </div>
 
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.35rem' }}>
                 <span>Reserved Items</span>
-                <strong style={{ color: '#fbbf24' }}>{reservedCount} ({totalAssets ? Math.round((reservedCount/totalAssets)*100) : 0}%)</strong>
+                <strong style={{ color: '#f59e0b' }}>
+                  {reservedCount} ({totalAssets ? Math.round((reservedCount/totalAssets)*100) : 0}%)
+                </strong>
               </div>
-              <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: '999px', height: '10px', overflow: 'hidden' }}>
-                <div style={{ background: '#f59e0b', width: `${totalAssets ? (reservedCount/totalAssets)*100 : 0}%`, height: '100%' }}></div>
+              <div className="bar-track">
+                <div className="bar-fill" style={{ background: '#f59e0b', width: `${totalAssets ? (reservedCount/totalAssets)*100 : 0}%` }}></div>
               </div>
             </div>
 
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.35rem' }}>
                 <span>Under Maintenance</span>
-                <strong style={{ color: '#f87171' }}>{maintenanceCount} ({totalAssets ? Math.round((maintenanceCount/totalAssets)*100) : 0}%)</strong>
+                <strong style={{ color: '#ef4444' }}>
+                  {maintenanceCount} ({totalAssets ? Math.round((maintenanceCount/totalAssets)*100) : 0}%)
+                </strong>
               </div>
-              <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: '999px', height: '10px', overflow: 'hidden' }}>
-                <div style={{ background: '#ef4444', width: `${totalAssets ? (maintenanceCount/totalAssets)*100 : 0}%`, height: '100%' }}></div>
+              <div className="bar-track">
+                <div className="bar-fill" style={{ background: '#ef4444', width: `${totalAssets ? (maintenanceCount/totalAssets)*100 : 0}%` }}></div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Most Borrowed Categories */}
+        {/* Dynamic Equipment Categories */}
         <div className="glass-card">
           <div className="glass-card-header">
-            <h3 className="glass-card-title">Top Equipment Categories</h3>
+            <h3 className="glass-card-title">Cataloged Equipment Categories</h3>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '0.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
-              <div>
-                <strong style={{ display: 'block', fontSize: '0.9rem' }}>AV & Projection Equipment</strong>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Projectors, Displays, HDMI Adapters</span>
-              </div>
-              <span className="badge badge-borrowed">High Demand</span>
+          
+          {sortedCategories.length === 0 ? (
+            <div className="empty-state">
+              <Package size={36} style={{ margin: '0 auto 0.5rem auto', opacity: 0.4 }} />
+              <p style={{ fontSize: '0.85rem' }}>No equipment categories cataloged yet.</p>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
-              <div>
-                <strong style={{ display: 'block', fontSize: '0.9rem' }}>Computers & Workstations</strong>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>High-spec laptops, Oscilloscopes</span>
-              </div>
-              <span className="badge badge-available">Moderate</span>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', marginTop: '0.5rem' }}>
+              {sortedCategories.map(([category, count]) => {
+                const pct = totalAssets ? Math.round((count / totalAssets) * 100) : 0;
+                return (
+                  <div key={category} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', background: 'var(--surface-low)', borderRadius: '8px' }}>
+                    <div>
+                      <strong style={{ display: 'block', fontSize: '0.9rem' }}>{category}</strong>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{count} unit{count === 1 ? '' : 's'} registered</span>
+                    </div>
+                    <span className="badge badge-info">{pct}% of catalog</span>
+                  </div>
+                );
+              })}
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
-              <div>
-                <strong style={{ display: 'block', fontSize: '0.9rem' }}>Media & Photography</strong>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Camera Kits, Microphones, Tripods</span>
-              </div>
-              <span className="badge badge-reserved">Active</span>
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

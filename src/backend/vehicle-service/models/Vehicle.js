@@ -1,10 +1,11 @@
+const crypto = require('crypto');
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
 const Vehicle = sequelize.define('Vehicle', {
   id: {
     type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
+    defaultValue: () => crypto.randomUUID(),
     primaryKey: true
   },
   plateNumber: {
@@ -32,9 +33,9 @@ const Vehicle = sequelize.define('Vehicle', {
     defaultValue: 'Available'
   },
   assignedDriverId: {
-    type: DataTypes.UUID,
+    type: DataTypes.STRING,
     allowNull: true,
-    comment: 'ID of assigned Driver/Delivery Personnel'
+    comment: 'Name or ID of assigned Driver/Delivery Personnel'
   },
   lastServiceDate: {
     type: DataTypes.DATEONLY,

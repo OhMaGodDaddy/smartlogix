@@ -1,16 +1,32 @@
+const crypto = require('crypto');
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
 const NotificationLog = sequelize.define('NotificationLog', {
   id: {
     type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
+    defaultValue: () => crypto.randomUUID(),
     primaryKey: true
   },
   recipientId: {
-    type: DataTypes.UUID,
+    type: DataTypes.STRING,
     allowNull: false,
-    comment: 'ID of the targeted recipient user'
+    comment: "User ID, 'role:<Role Name>' for a role broadcast, or 'all'"
+  },
+  title: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  level: {
+    type: DataTypes.STRING(20),
+    allowNull: false,
+    defaultValue: 'info',
+    comment: 'UI severity: info | warning | success'
+  },
+  isRead: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false
   },
   type: {
     type: DataTypes.ENUM('In-App', 'Email', 'SMS'),

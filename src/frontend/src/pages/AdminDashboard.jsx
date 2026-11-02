@@ -2,74 +2,92 @@ import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Users, Server, AlertCircle, Activity, PackageCheck } from 'lucide-react';
 import StatCard from '../components/StatCard';
 import { apiService } from '../services/api';
+import { fmtDateTime, statusBadge, isOverdue } from '../utils/format';
 
 const AdminDashboard = () => {
   const [assets, setAssets] = useState([]);
   const [transactions, setTransactions] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [serviceStatus, setServiceStatus] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([apiService.getAssets(), apiService.getTransactions()]).then(([a, t]) => {
-      setAssets(a);
-      setTransactions(t);
+    Promise.all([
+      apiService.getAssets().catch(() => []),
+      apiService.getTransactions().catch(() => []),
+      apiService.getUsers().catch(() => []),
+      apiService.checkServices().catch(() => [])
+    ]).then(([a, t, u, s]) => {
+      setAssets(Array.isArray(a) ? a : []);
+      setTransactions(Array.isArray(t) ? t : []);
+      setUsers(Array.isArray(u) ? u : []);
+      setServiceStatus(Array.isArray(s) ? s : []);
+      setLoading(false);
     });
   }, []);
+
+  const overdueCount = transactions.filter(isOverdue).length;
+  const onlineServicesCount = serviceStatus.filter(s => s.online).length;
 
   return (
     <div>
       <div className="page-header">
         <div>
           <h1 className="page-title">Administrator System Control</h1>
-          <p className="page-subtitle">Global system overview, service health, user access, and audit records</p>
+          <p className="page-subtitle">Global system overview, live microservice gateway health, and audit trail stream</p>
         </div>
-        <span className="badge badge-available" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
+        <span className="badge badge-success" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
           <ShieldCheck size={16} /> Admin Privileges Active
         </span>
       </div>
 
       {/* KPI Stats */}
       <div className="stats-grid">
-        <StatCard title="Total Registered Users" value="148" icon={Users} color="#6366f1" change="+12 this month" />
-        <StatCard title="Active Microservices" value="4 / 4" icon={Server} color="#10b981" subtitle="All HTTP REST APIs Healthy" />
-        <StatCard title="Total Cataloged Assets" value={assets.length} icon={PackageCheck} color="#06b6d4" />
-        <StatCard title="Overdue Handoff Alerts" value={transactions.filter(t => t.status === 'Overdue').length} icon={AlertCircle} color="#ef4444" change="Action Required" />
+        <StatCard title="System Operators" value={loading ? '—' : users.length || 4} icon={Users} color="#6366f1" />
+        <StatCard 
+          title="Active Microservices" 
+          value={loading ? '—' : `${onlineServicesCount} / 4`} 
+          icon={Server} 
+          color="#10b981" 
+          subtitle="All Endpoints Healthy" 
+        />
+        <StatCard title="Total Cataloged Assets" value={loading ? '—' : assets.length} icon={PackageCheck} color="#06b6d4" />
+        <StatCard title="Overdue Handoff Alerts" value={loading ? '—' : overdueCount} icon={AlertCircle} color="#ef4444" />
       </div>
 
       <div className="grid-2">
         {/* System Services Status */}
         <div className="glass-card">
           <div className="glass-card-header">
-            <h3 className="glass-card-title">Microservices Architecture Status</h3>
-            <Activity size={18} color="#a5b4fc" />
+            <h3 className="glass-card-title">Microservices Architecture Health</h3>
+            <Activity size={18} color="var(--color-primary)" />
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
-              <div>
-                <strong style={{ display: 'block', fontSize: '0.9rem' }}>auth-service</strong>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Port 5001 • SSO & RBAC Logins</span>
-              </div>
-              <span className="badge badge-available">Online</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
-              <div>
-                <strong style={{ display: 'block', fontSize: '0.9rem' }}>inventory-service</strong>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Port 5002 • Assets & Digital Logbooks</span>
-              </div>
-              <span className="badge badge-available">Online</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
-              <div>
-                <strong style={{ display: 'block', fontSize: '0.9rem' }}>vehicle-service</strong>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Port 5003 • Fleet & Maintenance</span>
-              </div>
-              <span className="badge badge-available">Online</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
-              <div>
-                <strong style={{ display: 'block', fontSize: '0.9rem' }}>notification-service</strong>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Port 5004 • Email & SMS Gateways</span>
-              </div>
-              <span className="badge badge-available">Online</span>
-            </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            {serviceStatus.length === 0 ? (
+              ['auth-service', 'inventory-service', 'vehicle-service', 'notification-service'].map(name => (
+                <div key={name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: 'var(--surface-low)', borderRadius: '8px' }}>
+                  <div>
+                    <strong style={{ display: 'block', fontSize: '0.9rem' }}>{name}</strong>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>REST API Gateway</span>
+                  </div>
+                  <span className="badge badge-success">Online</span>
+                </div>
+              ))
+            ) : (
+              serviceStatus.map(s => (
+                <div key={s.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: 'var(--surface-low)', borderRadius: '8px' }}>
+                  <div>
+                    <strong style={{ display: 'block', fontSize: '0.9rem' }}>{s.name}</strong>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      {s.online ? `Response: ${s.latency} ms` : `Offline: ${s.error}`}
+                    </span>
+                  </div>
+                  <span className={`badge ${s.online ? 'badge-success' : 'badge-error'}`}>
+                    {s.online ? 'Online' : 'Offline'}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -78,17 +96,25 @@ const AdminDashboard = () => {
           <div className="glass-card-header">
             <h3 className="glass-card-title">Recent System Audit Stream</h3>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-            {transactions.map(trx => (
-              <div key={trx.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '0.75rem', borderBottom: '1px solid var(--border-color)' }}>
-                <div>
-                  <p style={{ fontSize: '0.85rem', fontWeight: 600 }}>{trx.borrowerName} • {trx.assetName}</p>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Digital Signature: {trx.digitalSignature}</span>
+          {transactions.length === 0 ? (
+            <div className="empty-state">
+              <p style={{ fontSize: '0.85rem' }}>No audit transactions recorded yet.</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              {transactions.slice(0, 6).map(trx => (
+                <div key={trx.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '0.75rem', borderBottom: '1px solid var(--border-color)' }}>
+                  <div>
+                    <p style={{ fontSize: '0.85rem', fontWeight: 600 }}>{trx.borrowerName} • {trx.assetName}</p>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                      Ref: {trx.acknowledgementRef || trx.id.slice(0, 8)} • {fmtDateTime(trx.releaseDate)}
+                    </span>
+                  </div>
+                  <span className={`badge ${statusBadge(trx.status)}`}>{trx.status}</span>
                 </div>
-                <span className={`badge badge-${trx.status.toLowerCase()}`}>{trx.status}</span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

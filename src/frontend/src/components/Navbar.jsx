@@ -10,8 +10,9 @@ const Navbar = ({ title = 'Dashboard Overview' }) => {
 
   return (
     <header className="topbar">
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)' }}>{title}</h2>
+        <span className="badge badge-info" style={{ fontSize: '0.72rem', fontWeight: 700 }}>CEU Campus</span>
         
         <div className="search-box">
           <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />

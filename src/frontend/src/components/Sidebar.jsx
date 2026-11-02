@@ -23,7 +23,7 @@ const Sidebar = () => {
         <div className="sidebar-brand-icon">S</div>
         <div>
           <h1 className="sidebar-brand-title">SMARTLOGIX</h1>
-          <p className="sidebar-brand-subtitle">Logistics Management</p>
+          <p className="sidebar-brand-subtitle">Centro Escolar University</p>
         </div>
       </div>
 

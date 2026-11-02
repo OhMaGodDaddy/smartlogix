@@ -5,6 +5,7 @@ const { errorHandler, describeError } = require('./lib/http');
 const { migrate } = require('./lib/migrate');
 const { refreshOverdue } = require('./lib/overdue');
 const { purgeDemoData } = require('./lib/purgeDemoData');
+const { seedCEUData } = require('./lib/seedCEU');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -49,7 +50,11 @@ async function connectDatabase() {
     await sequelize.authenticate();
     await sequelize.sync();
     await migrate(sequelize);
-    if (process.env.PURGE_DEMO_DATA === 'true') await purgeDemoData();
+    if (process.env.PURGE_DEMO_DATA === 'true') {
+      await purgeDemoData();
+    } else {
+      await seedCEUData();
+    }
     dbReady = true;
     dbError = null;
     console.log('[SmartLogix] Database ready.');

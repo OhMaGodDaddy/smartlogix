@@ -13,6 +13,18 @@ const QRScanPage = () => {
   const canProcessHandoff = activeRole === ROLES.ADMIN || activeRole === ROLES.OFFICER;
 
   const queryRef = searchParams.get('qrRef') || searchParams.get('assetId') || '';
+  const reservationId = searchParams.get('reservationId') || '';
+  const reservationBorrower = searchParams.get('borrower') || '';
+  const reservationBorrowerId = searchParams.get('borrowerId') || '';
+  const reservationUntil = searchParams.get('until') || '';
+
+  const toLocalInput = (iso) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
 
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -23,8 +35,8 @@ const QRScanPage = () => {
   const [actionError, setActionError] = useState('');
 
   // Checkout inputs
-  const [borrowerName, setBorrowerName] = useState(user?.name || '');
-  const [expectedReturnDate, setExpectedReturnDate] = useState('');
+  const [borrowerName, setBorrowerName] = useState(reservationBorrower);
+  const [expectedReturnDate, setExpectedReturnDate] = useState(toLocalInput(reservationUntil));
   const [returnCondition, setReturnCondition] = useState('Good');
 
   useEffect(() => {
@@ -78,6 +90,8 @@ const QRScanPage = () => {
     try {
       await apiService.checkoutAsset(scannedAsset.id, {
         borrowerName,
+        borrowerId: reservationBorrowerId || undefined,
+        reservationId: reservationId || undefined,
         expectedReturnDate: new Date(expectedReturnDate).toISOString(),
         releasedBy: user?.id,
         releasedByName: user?.name,
@@ -219,8 +233,18 @@ const QRScanPage = () => {
                   <div>QR Ref: <code style={{ color: 'var(--color-primary)' }}>{scannedAsset.qrCodeRef}</code></div>
                 </div>
 
-                {canProcessHandoff && scannedAsset.status === 'Available' && (
+                {canProcessHandoff && ['Available', 'Reserved'].includes(scannedAsset.status) && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {reservationId && (
+                      <div className="alert alert-info">
+                        Releasing against an approved reservation. Borrower and return date are pre-filled from the request.
+                      </div>
+                    )}
+                    {!reservationId && scannedAsset.status === 'Reserved' && (
+                      <div className="alert alert-info">
+                        This asset is reserved for an approved request. Release it from the Requests page so the booking is linked to the logbook entry.
+                      </div>
+                    )}
                     <div className="form-group" style={{ marginBottom: 0 }}>
                       <label className="form-label">Borrower Name</label>
                       <input 
@@ -286,7 +310,7 @@ const QRScanPage = () => {
                   </div>
                 )}
 
-                {scannedAsset.status !== 'Available' && scannedAsset.status !== 'Borrowed' && (
+                {!['Available', 'Reserved', 'Borrowed'].includes(scannedAsset.status) && (
                   <div className="alert alert-error">
                     Asset is currently {scannedAsset.status}. Only Available assets can be checked out.
                   </div>

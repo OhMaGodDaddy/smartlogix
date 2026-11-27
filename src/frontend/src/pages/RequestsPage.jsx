@@ -214,7 +214,16 @@ const RequestsPage = () => {
                   <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                     {canRelease && (
                       <button 
-                        onClick={() => navigate(`/qr-scan?assetId=${item.assetId}`)} 
+                        onClick={() => {
+                          const params = new URLSearchParams({
+                            assetId: item.assetId,
+                            reservationId: item.id,
+                            borrower: item.userName || '',
+                            borrowerId: item.userId || '',
+                            until: item.endDate || ''
+                          });
+                          navigate(`/qr-scan?${params.toString()}`);
+                        }}
                         className="btn btn-primary btn-sm"
                       >
                         <ArrowRightLeft size={14} /> Release Asset Now (Handoff)

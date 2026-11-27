@@ -69,35 +69,77 @@ if (!Array.isArray(fallbackVehicles) || fallbackVehicles.length === 0 || !fallba
   storage.set('vehicles', CEU_INITIAL_VEHICLES);
 }
 
+// --- Connection status (drives the offline banner) ---
 let cloudBackendAvailable = !IS_PLACEHOLDER_URL;
+const connectionListeners = new Set();
+
+const setCloudAvailable = (value) => {
+  if (cloudBackendAvailable === value) return;
+  cloudBackendAvailable = value;
+  connectionListeners.forEach((listener) => listener());
+};
+
+export const subscribeConnection = (listener) => {
+  connectionListeners.add(listener);
+  return () => connectionListeners.delete(listener);
+};
+
+/**
+ * The local fallback is only for an unreachable backend. An error with `answered` set
+ * must reach the user, because saving locally would report a failed action as done.
+ */
+const answeredError = (message) => Object.assign(new Error(message), { answered: true });
+const rethrowIfAnswered = (err) => {
+  if (err.answered) throw err;
+};
+
+// Gateway errors, including the API's own "database is not connected yet" (503).
+const UNREACHABLE_STATUSES = [502, 503, 504];
 
 async function request(base, path, { method = 'GET', body } = {}) {
   if (IS_PLACEHOLDER_URL || !base) {
     throw new Error('FALLBACK_MODE');
   }
 
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 6000);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 6000);
 
+  try {
     const response = await fetch(`${base}${path}`, {
       method,
       headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: controller.signal
     });
-    clearTimeout(timeout);
 
-    if (response.status === 204) return null;
-    const data = await response.json().catch(() => null);
-    if (!response.ok) {
-      throw new Error((data && data.error) || `Request failed (${response.status})`);
+    if (response.status === 204) {
+      setCloudAvailable(true);
+      return null;
     }
-    cloudBackendAvailable = true;
+    const data = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      // Only an `{ error }` body comes from our API; a hosting platform's error page does not.
+      if (typeof data?.error === 'string' && !UNREACHABLE_STATUSES.includes(response.status)) {
+        setCloudAvailable(true);
+        throw answeredError(data.error);
+      }
+      throw new Error(data?.error || `Request failed (${response.status})`);
+    }
+    if (data === null) throw new Error('The server sent an unreadable response');
+
+    setCloudAvailable(true);
     return data;
   } catch (err) {
-    cloudBackendAvailable = false;
+    if (err.answered) throw err;
+    // A write that timed out may still have reached the server, so don't redo it locally.
+    if (err.name === 'AbortError' && method !== 'GET') {
+      throw answeredError('The server took too long to respond. Refresh to check whether the change was saved before trying again.');
+    }
+    setCloudAvailable(false);
     throw err;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -117,7 +159,8 @@ export const apiService = {
   getAssets: async () => {
     try {
       return await request(SERVICES.INVENTORY, '/assets');
-    } catch {
+    } catch (err) {
+      rethrowIfAnswered(err);
       return fallbackAssets;
     }
   },
@@ -125,7 +168,8 @@ export const apiService = {
   getAssetById: async (id) => {
     try {
       return await request(SERVICES.INVENTORY, `/assets/${encodeURIComponent(id)}`);
-    } catch {
+    } catch (err) {
+      rethrowIfAnswered(err);
       const found = fallbackAssets.find(a => a.id === id || a.assetTag === id || a.qrCodeRef === id);
       if (!found) throw new Error('Asset not found');
       return found;
@@ -135,7 +179,8 @@ export const apiService = {
   createAsset: async (data) => {
     try {
       return await request(SERVICES.INVENTORY, '/assets', { method: 'POST', body: data });
-    } catch {
+    } catch (err) {
+      rethrowIfAnswered(err);
       const tag = data.assetTag || `AST-${Date.now().toString().slice(-6)}`;
       const newAsset = {
         id: `ast-local-${Date.now()}`,
@@ -155,7 +200,8 @@ export const apiService = {
   updateAsset: async (id, data) => {
     try {
       return await request(SERVICES.INVENTORY, `/assets/${id}`, { method: 'PUT', body: data });
-    } catch {
+    } catch (err) {
+      rethrowIfAnswered(err);
       const idx = fallbackAssets.findIndex(a => a.id === id);
       if (idx === -1) throw new Error('Asset not found');
       fallbackAssets[idx] = { ...fallbackAssets[idx], ...data };
@@ -167,7 +213,8 @@ export const apiService = {
   deleteAsset: async (id) => {
     try {
       return await request(SERVICES.INVENTORY, `/assets/${id}`, { method: 'DELETE' });
-    } catch {
+    } catch (err) {
+      rethrowIfAnswered(err);
       fallbackAssets = fallbackAssets.filter(a => a.id !== id);
       storage.set('assets', fallbackAssets);
       return null;
@@ -177,7 +224,8 @@ export const apiService = {
   checkoutAsset: async (id, data) => {
     try {
       return await request(SERVICES.INVENTORY, `/assets/${id}/checkout`, { method: 'POST', body: data });
-    } catch {
+    } catch (err) {
+      rethrowIfAnswered(err);
       const asset = fallbackAssets.find(a => a.id === id);
       if (!asset) throw new Error('Asset not found');
       asset.status = 'Borrowed';
@@ -210,7 +258,8 @@ export const apiService = {
   returnAsset: async (id, data = {}) => {
     try {
       return await request(SERVICES.INVENTORY, `/assets/${id}/return`, { method: 'POST', body: data });
-    } catch {
+    } catch (err) {
+      rethrowIfAnswered(err);
       const asset = fallbackAssets.find(a => a.id === id);
       if (!asset) throw new Error('Asset not found');
       const condition = data.conditionAtReturn || asset.condition;
@@ -235,7 +284,8 @@ export const apiService = {
   getTransactions: async (params = {}) => {
     try {
       return await request(SERVICES.INVENTORY, `/transactions${query(params)}`);
-    } catch {
+    } catch (err) {
+      rethrowIfAnswered(err);
       return fallbackTransactions;
     }
   },
@@ -243,7 +293,8 @@ export const apiService = {
   returnTransaction: async (id, data = {}) => {
     try {
       return await request(SERVICES.INVENTORY, `/transactions/${id}/return`, { method: 'POST', body: data });
-    } catch {
+    } catch (err) {
+      rethrowIfAnswered(err);
       const trx = fallbackTransactions.find(t => t.id === id);
       if (!trx) throw new Error('Transaction not found');
       trx.status = 'Returned';
@@ -253,7 +304,8 @@ export const apiService = {
 
       const asset = fallbackAssets.find(a => a.id === trx.assetId);
       if (asset) {
-        asset.status = 'Available';
+        asset.status = trx.conditionAtReturn === 'Requires Repair' ? 'Maintenance' : 'Available';
+        asset.condition = trx.conditionAtReturn;
         asset.currentHolderId = null;
         asset.currentHolderName = null;
         storage.set('assets', fallbackAssets);
@@ -266,7 +318,8 @@ export const apiService = {
   getReservations: async () => {
     try {
       return await request(SERVICES.INVENTORY, '/reservations');
-    } catch {
+    } catch (err) {
+      rethrowIfAnswered(err);
       return fallbackReservations;
     }
   },
@@ -274,7 +327,8 @@ export const apiService = {
   createReservation: async (data) => {
     try {
       return await request(SERVICES.INVENTORY, '/reservations', { method: 'POST', body: data });
-    } catch {
+    } catch (err) {
+      rethrowIfAnswered(err);
       const asset = fallbackAssets.find(a => a.id === data.assetId);
       const newRes = {
         id: `res-local-${Date.now()}`,
@@ -300,7 +354,8 @@ export const apiService = {
         method: 'PATCH',
         body: { status, rejectionReason, approverId }
       });
-    } catch {
+    } catch (err) {
+      rethrowIfAnswered(err);
       const res = fallbackReservations.find(r => r.id === id);
       if (!res) throw new Error('Reservation not found');
       res.status = status;
@@ -323,7 +378,8 @@ export const apiService = {
   getVehicles: async () => {
     try {
       return await request(SERVICES.VEHICLE, '/vehicles');
-    } catch {
+    } catch (err) {
+      rethrowIfAnswered(err);
       return fallbackVehicles;
     }
   },
@@ -331,7 +387,8 @@ export const apiService = {
   createVehicle: async (data) => {
     try {
       return await request(SERVICES.VEHICLE, '/vehicles', { method: 'POST', body: data });
-    } catch {
+    } catch (err) {
+      rethrowIfAnswered(err);
       const newVehicle = {
         id: `vh-local-${Date.now()}`,
         fleetStatus: 'Available',
@@ -348,7 +405,8 @@ export const apiService = {
   updateVehicle: async (id, data) => {
     try {
       return await request(SERVICES.VEHICLE, `/vehicles/${id}`, { method: 'PUT', body: data });
-    } catch {
+    } catch (err) {
+      rethrowIfAnswered(err);
       const idx = fallbackVehicles.findIndex(v => v.id === id);
       if (idx === -1) throw new Error('Vehicle not found');
       fallbackVehicles[idx] = { ...fallbackVehicles[idx], ...data };
@@ -360,7 +418,8 @@ export const apiService = {
   deleteVehicle: async (id) => {
     try {
       return await request(SERVICES.VEHICLE, `/vehicles/${id}`, { method: 'DELETE' });
-    } catch {
+    } catch (err) {
+      rethrowIfAnswered(err);
       fallbackVehicles = fallbackVehicles.filter(v => v.id !== id);
       storage.set('vehicles', fallbackVehicles);
       return null;
@@ -371,7 +430,8 @@ export const apiService = {
   getNotifications: async ({ recipientId, role } = {}) => {
     try {
       return await request(SERVICES.NOTIFICATION, `/logs${query({ recipientId, role })}`);
-    } catch {
+    } catch (err) {
+      rethrowIfAnswered(err);
       return fallbackNotifications;
     }
   },
@@ -379,7 +439,8 @@ export const apiService = {
   markNotificationRead: async (id) => {
     try {
       return await request(SERVICES.NOTIFICATION, `/logs/${id}/read`, { method: 'PATCH' });
-    } catch {
+    } catch (err) {
+      rethrowIfAnswered(err);
       const n = fallbackNotifications.find(item => item.id === id);
       if (n) n.isRead = true;
       storage.set('notifications', fallbackNotifications);
@@ -390,7 +451,8 @@ export const apiService = {
   markAllNotificationsRead: async ({ recipientId, role } = {}) => {
     try {
       return await request(SERVICES.NOTIFICATION, '/logs/read-all', { method: 'POST', body: { recipientId, role } });
-    } catch {
+    } catch (err) {
+      rethrowIfAnswered(err);
       fallbackNotifications.forEach(n => { n.isRead = true; });
       storage.set('notifications', fallbackNotifications);
       return { updated: fallbackNotifications.length };
@@ -401,7 +463,8 @@ export const apiService = {
   getUsers: async () => {
     try {
       return await request(SERVICES.AUTH, '/users');
-    } catch {
+    } catch (err) {
+      rethrowIfAnswered(err);
       return [
         { id: 'usr-admin-01', firstName: 'Kyle', lastName: 'Carag', role: 'Administrator', email: 'kyle.admin@ceu.edu.ph' },
         { id: 'usr-officer-01', firstName: 'Mark', lastName: 'Miguel', role: 'Logistics/Property Officer', email: 'property.officer@ceu.edu.ph' },

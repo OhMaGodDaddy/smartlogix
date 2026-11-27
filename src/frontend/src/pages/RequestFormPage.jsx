@@ -17,6 +17,8 @@ const RequestFormPage = () => {
   const [endDate, setEndDate] = useState('');
   const [purpose, setPurpose] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   useEffect(() => {
     apiService.getAssets().then(setAssets);
@@ -40,12 +42,17 @@ const RequestFormPage = () => {
       purpose
     };
 
-    apiService.createReservation(reservationData).then(() => {
-      setSubmitted(true);
-      setTimeout(() => {
-        navigate('/calendar');
-      }, 2000);
-    });
+    setSubmitting(true);
+    setSubmitError('');
+    apiService.createReservation(reservationData)
+      .then(() => {
+        setSubmitted(true);
+        setTimeout(() => {
+          navigate('/calendar');
+        }, 2000);
+      })
+      .catch((err) => setSubmitError(err.message))
+      .finally(() => setSubmitting(false));
   };
 
   return (
@@ -71,6 +78,8 @@ const RequestFormPage = () => {
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
+            {submitError && <div className="alert alert-error" role="alert">{submitError}</div>}
+
             <div className="form-group">
               <label className="form-label">Select Equipment / Resource</label>
               <select 
@@ -136,8 +145,8 @@ const RequestFormPage = () => {
             </div>
 
             <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
-              <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
-                <FilePlus size={18} /> Submit Reservation Request
+              <button type="submit" disabled={submitting} className="btn btn-primary" style={{ flex: 1 }}>
+                <FilePlus size={18} /> {submitting ? 'Submitting...' : 'Submit Reservation Request'}
               </button>
               <button type="button" onClick={() => navigate(-1)} className="btn btn-secondary">
                 Cancel

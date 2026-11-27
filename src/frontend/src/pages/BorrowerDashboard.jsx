@@ -5,7 +5,7 @@ import AssetCard from '../components/AssetCard';
 import { apiService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { fmtDate, statusBadge } from '../utils/format';
+import { fmtDate, statusBadge, isOwnLoan, isOwnReservation } from '../utils/format';
 
 const BorrowerDashboard = () => {
   const { user } = useAuth();
@@ -25,8 +25,8 @@ const BorrowerDashboard = () => {
       setAssets(Array.isArray(a) ? a : []);
       const allR = Array.isArray(r) ? r : [];
       const allT = Array.isArray(t) ? t : [];
-      setReservations(allR.filter(item => item.userId === user?.id || item.userName === user?.name));
-      setTransactions(allT.filter(item => item.borrowerId === user?.id || item.borrowerName === user?.name));
+      setReservations(allR.filter(item => isOwnReservation(item, user)));
+      setTransactions(allT.filter(item => isOwnLoan(item, user)));
       setLoading(false);
     });
   }, [user]);
@@ -90,7 +90,7 @@ const BorrowerDashboard = () => {
       <div style={{ marginTop: '2rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
           <h3 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Browse Available Assets</h3>
-          <div style={{ position: 'relative', width: '300px' }}>
+          <div style={{ position: 'relative', width: '300px', maxWidth: '100%' }}>
             <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
             <input 
               type="text" 

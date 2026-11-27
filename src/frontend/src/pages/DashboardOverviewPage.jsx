@@ -13,6 +13,7 @@ import {
   Calendar,
   ArrowRight
 } from 'lucide-react';
+import PageHeader from '../components/PageHeader';
 import { apiService } from '../services/api';
 import { fmtDate, fmtTime, isOverdue, statusBadge } from '../utils/format';
 
@@ -60,22 +61,14 @@ const DashboardOverviewPage = () => {
   return (
     <div>
       {/* Action Header Banner */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Dashboard Overview</h2>
-          <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-            Live status of organizational logistics, equipment inventory, and handoffs.
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button onClick={() => navigate('/qr-scan')} className="btn btn-secondary">
-            <QrCode size={16} /> Scan QR
-          </button>
-          <button onClick={() => navigate('/inventory?action=new')} className="btn btn-primary">
-            <Plus size={16} /> New Asset
-          </button>
-        </div>
-      </div>
+      <PageHeader title="Dashboard Overview" subtitle="Live status of organizational logistics, equipment inventory, and handoffs.">
+        <button onClick={() => navigate('/qr-scan')} className="btn btn-secondary">
+          <QrCode size={16} /> Scan QR
+        </button>
+        <button onClick={() => navigate('/inventory?action=new')} className="btn btn-primary">
+          <Plus size={16} /> New Asset
+        </button>
+      </PageHeader>
 
       {/* 5 Metrics Grid */}
       <div className="metrics-grid-5">
@@ -123,10 +116,10 @@ const DashboardOverviewPage = () => {
       </div>
 
       {/* Main Charts & Tables Section */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '1.25rem', marginBottom: '1.5rem' }}>
+      <div className="overview-grid">
         
         {/* Left Column (8 cols): Recent Logbook Activity */}
-        <div style={{ gridColumn: 'span 8', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div className="overview-column">
           
           <div className="card-level-1" style={{ padding: 0, overflow: 'hidden' }}>
             <div style={{ padding: '1rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)' }}>
@@ -202,7 +195,7 @@ const DashboardOverviewPage = () => {
         </div>
 
         {/* Right Column (4 cols): Category Distribution & Pending Requests */}
-        <div style={{ gridColumn: 'span 4', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div className="overview-column">
           
           {/* Category Distribution */}
           <div className="card-level-1">

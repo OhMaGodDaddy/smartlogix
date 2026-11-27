@@ -1,44 +1,51 @@
 import React from 'react';
-import { Search, Bell, History, HelpCircle, Sun, Moon, UserCheck } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Search, History, Sun, Moon, UserCheck, Menu } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import NotificationDropdown from './NotificationDropdown';
 
-const ROLE_PORTAL_TITLES = {
-  'Administrator': 'Administrator System Control',
-  'Logistics/Property Officer': 'Logistics & Property Officer Workspace',
-  'Requester/Borrower': 'Borrower & Student Portal',
-  'Approver': 'Approver Review Portal'
-};
-
-const Navbar = ({ title }) => {
+const Navbar = ({ isMenuOpen, onMenuClick }) => {
   const { theme, toggleTheme } = useTheme();
   const { user, activeRole, switchRole, ROLES } = useAuth();
-  const displayTitle = title || ROLE_PORTAL_TITLES[activeRole] || 'Dashboard Overview';
+  const navigate = useNavigate();
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    const term = new FormData(e.currentTarget).get('q').trim();
+    navigate(`/inventory?q=${encodeURIComponent(term)}`);
+  };
 
   return (
     <header className="topbar">
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)' }}>{displayTitle}</h2>
-        <span className="badge badge-info" style={{ fontSize: '0.72rem', fontWeight: 700 }}>
-          {user?.name} • {user?.department || 'CEU Campus'}
-        </span>
-        
-        <div className="search-box">
+      <button
+        type="button"
+        className="icon-btn menu-btn"
+        onClick={onMenuClick}
+        aria-label="Open menu"
+        aria-expanded={isMenuOpen}
+        aria-controls="app-sidebar"
+      >
+        <Menu size={20} />
+      </button>
+      <span className="topbar-brand">SmartLogix</span>
+
+        <form className="search-box" role="search" onSubmit={handleSearch}>
           <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-          <input 
-            type="text" 
-            placeholder="Search assets, vehicles..." 
+          <input
+            type="search"
+            name="q"
+            aria-label="Search assets"
+            placeholder="Search assets, then press Enter"
             className="search-input"
           />
-        </div>
-      </div>
+        </form>
 
       <div className="topbar-actions">
         {/* Role Selector Badge */}
         <div className="role-badge-select">
-          <UserCheck size={14} color="#6366f1" />
-          <select value={activeRole} onChange={(e) => switchRole(e.target.value)}>
+          <UserCheck size={14} color="var(--color-primary)" />
+          <select aria-label="Active role" value={activeRole} onChange={(e) => switchRole(e.target.value)}>
             <option value={ROLES.ADMIN}>Administrator</option>
             <option value={ROLES.OFFICER}>Logistics Officer</option>
             <option value={ROLES.BORROWER}>Borrower / Student</option>
@@ -52,30 +59,17 @@ const Navbar = ({ title }) => {
           className="icon-btn"
           title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
         >
-          {theme === 'dark' ? <Sun size={18} color="#fbbf24" /> : <Moon size={18} color="#6366f1" />}
+          {theme === 'dark' ? <Sun size={18} color="#fbbf24" /> : <Moon size={18} color="var(--color-primary)" />}
         </button>
 
         <NotificationDropdown />
 
-        <button className="icon-btn" title="Audit History">
+        <button onClick={() => navigate('/logbook')} className="icon-btn" title="Logbook history" aria-label="Logbook history">
           <History size={18} />
         </button>
 
         {/* User Profile Avatar */}
-        <div style={{
-          width: '34px',
-          height: '34px',
-          borderRadius: '50%',
-          backgroundColor: 'var(--color-primary)',
-          color: 'var(--color-on-primary)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontWeight: 700,
-          fontSize: '0.85rem',
-          marginLeft: '0.25rem',
-          cursor: 'pointer'
-        }}>
+        <div className="avatar" title={`${user.name} • ${user.department}`}>
           {user.name ? user.name.charAt(0) : 'S'}
         </div>
       </div>

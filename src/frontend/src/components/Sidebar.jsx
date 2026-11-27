@@ -13,13 +13,16 @@ import {
   Plus,
   CalendarPlus,
   CheckSquare,
-  Calendar
+  Calendar,
+  X
 } from 'lucide-react';
 import { useAuth, ROLES } from '../context/AuthContext';
+import { useFeedback } from '../context/FeedbackContext';
 
-const Sidebar = () => {
+const Sidebar = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const { activeRole, user } = useAuth();
+  const { notify } = useFeedback();
 
   const isAdmin = activeRole === ROLES.ADMIN;
   const isOfficer = activeRole === ROLES.OFFICER;
@@ -56,7 +59,15 @@ const Sidebar = () => {
   };
 
   return (
-    <aside className="sidebar">
+    <aside
+      id="app-sidebar"
+      className={`sidebar ${isOpen ? 'open' : ''}`}
+      onClick={(e) => { if (e.target.closest('a, button')) onClose(); }}
+    >
+      <button type="button" className="icon-btn sidebar-close" aria-label="Close menu">
+        <X size={18} />
+      </button>
+
       {/* Brand Header */}
       <div className="sidebar-brand">
         <div className="sidebar-brand-icon">S</div>
@@ -146,7 +157,7 @@ const Sidebar = () => {
             <span>Global Overview</span>
           </NavLink>
         )}
-        <a href="#support" onClick={(e) => { e.preventDefault(); alert('SmartLogix Support System: support@smartlogix.org'); }} className="sidebar-link">
+        <a href="#support" onClick={(e) => { e.preventDefault(); notify('SmartLogix support: support@smartlogix.org', 'info'); }} className="sidebar-link">
           <HelpCircle size={18} />
           <span>Support</span>
         </a>

@@ -19,6 +19,7 @@ import StatCard from '../components/StatCard';
 import { apiService } from '../services/api';
 import { fmtDate } from '../utils/format';
 import { useAuth, ROLES } from '../context/AuthContext';
+import { useFeedback } from '../context/FeedbackContext';
 
 const FLEET_STATUSES = ['Available', 'In Transit', 'Maintenance', 'Out of Service'];
 
@@ -31,6 +32,7 @@ const CEU_DRIVER_PRESETS = [
 
 const VehiclesPage = () => {
   const { activeRole } = useAuth();
+  const { notify, confirm } = useFeedback();
   const canManageFleet = activeRole === ROLES.ADMIN || activeRole === ROLES.OFFICER;
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -93,6 +95,7 @@ const VehiclesPage = () => {
         nextMaintenanceDate: '',
         notes: ''
       });
+      notify('Vehicle registered.');
       await loadVehicles();
     } catch (err) {
       setModalError(err.message || 'Failed to create vehicle');
@@ -102,12 +105,19 @@ const VehiclesPage = () => {
   };
 
   const handleDelete = async (vehicle) => {
-    if (!window.confirm(`Delete vehicle ${vehicle.plateNumber} (${vehicle.model}) from CEU fleet?`)) return;
+    const confirmed = await confirm({
+      title: 'Delete vehicle?',
+      message: `${vehicle.plateNumber} (${vehicle.model}) will be removed from the CEU fleet. This can't be undone.`,
+      confirmLabel: 'Delete vehicle',
+      danger: true
+    });
+    if (!confirmed) return;
     try {
       await apiService.deleteVehicle(vehicle.id);
+      notify(`${vehicle.plateNumber} was deleted.`);
       await loadVehicles();
     } catch (err) {
-      alert(`Cannot delete vehicle: ${err.message}`);
+      notify(`Cannot delete vehicle: ${err.message}`, 'error');
     }
   };
 
@@ -116,7 +126,7 @@ const VehiclesPage = () => {
       await apiService.updateVehicle(vehicle.id, { fleetStatus: newStatus });
       await loadVehicles();
     } catch (err) {
-      alert(`Cannot update status: ${err.message}`);
+      notify(`Cannot update status: ${err.message}`, 'error');
     }
   };
 

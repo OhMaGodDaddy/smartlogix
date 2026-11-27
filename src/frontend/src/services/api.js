@@ -11,15 +11,26 @@ import {
 } from './ceuData';
 
 const trimSlash = (value) => (value ? value.replace(/\/+$/, '') : '');
+const withProtocol = (value) => {
+  const cleaned = trimSlash(value);
+  if (!cleaned) return '';
+  if (/^https?:\/\//i.test(cleaned)) return cleaned;
+  if (/^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(cleaned)) return `http://${cleaned}`;
+  return `https://${cleaned}`;
+};
+const validUrl = (value) => {
+  const normalized = withProtocol(value);
+  return !normalized || normalized.includes('xxxx') ? '' : normalized;
+};
 
-export const API_BASE = trimSlash(import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000');
-const IS_PLACEHOLDER_URL = !API_BASE || API_BASE.includes('xxxx');
+export const API_BASE = validUrl(import.meta.env.VITE_API_BASE_URL) || 'https://smartlogix-production-2f5d.up.railway.app';
+const IS_PLACEHOLDER_URL = !API_BASE;
 
 const SERVICES = {
-  AUTH: trimSlash(import.meta.env.VITE_AUTH_SERVICE_URL || `${API_BASE}/api/auth`),
-  INVENTORY: trimSlash(import.meta.env.VITE_INVENTORY_SERVICE_URL || `${API_BASE}/api/inventory`),
-  VEHICLE: trimSlash(import.meta.env.VITE_VEHICLE_SERVICE_URL || `${API_BASE}/api/vehicles`),
-  NOTIFICATION: trimSlash(import.meta.env.VITE_NOTIFICATION_SERVICE_URL || `${API_BASE}/api/notifications`)
+  AUTH: validUrl(import.meta.env.VITE_AUTH_SERVICE_URL) || `${API_BASE}/api/auth`,
+  INVENTORY: validUrl(import.meta.env.VITE_INVENTORY_SERVICE_URL) || `${API_BASE}/api/inventory`,
+  VEHICLE: validUrl(import.meta.env.VITE_VEHICLE_SERVICE_URL) || `${API_BASE}/api/vehicles`,
+  NOTIFICATION: validUrl(import.meta.env.VITE_NOTIFICATION_SERVICE_URL) || `${API_BASE}/api/notifications`
 };
 
 // --- Local CEU Persistent Fallback Store ---

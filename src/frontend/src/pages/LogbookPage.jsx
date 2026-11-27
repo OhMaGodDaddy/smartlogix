@@ -8,10 +8,13 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { apiService } from '../services/api';
-import { fmtDateTime, fmtDate, isOverdue, isOpenLoan, statusBadge, downloadCsv } from '../utils/format';
+import { fmtDateTime, isOverdue, isOpenLoan, statusBadge, downloadCsv } from '../utils/format';
+import { useAuth, ROLES } from '../context/AuthContext';
 
 const LogbookPage = () => {
   const navigate = useNavigate();
+  const { activeRole } = useAuth();
+  const canProcessReturns = activeRole === ROLES.ADMIN || activeRole === ROLES.OFFICER;
 
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -199,7 +202,7 @@ const LogbookPage = () => {
                       </span>
                     </td>
                     <td style={{ textAlign: 'right' }}>
-                      {isOpenLoan(trx) && (
+                      {isOpenLoan(trx) && canProcessReturns && (
                         <button 
                           onClick={() => handleReturn(trx)}
                           className="btn btn-secondary btn-sm"

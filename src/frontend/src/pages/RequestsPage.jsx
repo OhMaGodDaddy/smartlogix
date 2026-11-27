@@ -10,11 +10,15 @@ import {
 } from 'lucide-react';
 import { apiService } from '../services/api';
 import { fmtDateTime, statusBadge } from '../utils/format';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, ROLES } from '../context/AuthContext';
 
 const RequestsPage = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, activeRole } = useAuth();
+
+  const canApprove = activeRole === ROLES.ADMIN || activeRole === ROLES.APPROVER;
+  const canRelease = activeRole === ROLES.ADMIN || activeRole === ROLES.OFFICER;
+  const isBorrower = activeRole === ROLES.BORROWER;
 
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -72,8 +76,16 @@ const RequestsPage = () => {
       {/* Header & Tabs */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h1 className="page-title">Requests & Reservations</h1>
-          <p className="page-subtitle">Manage asset borrowing approval queues, reservations, and handoffs</p>
+          <h1 className="page-title">
+            {isBorrower ? 'My Resource Requests' : canApprove ? 'Approver Reservation Queue' : 'Requests & Reservations'}
+          </h1>
+          <p className="page-subtitle">
+            {isBorrower
+              ? `Track reservation requests submitted as ${user?.name} and check approval status`
+              : canApprove
+                ? 'Review, approve, or reject pending borrowing requests across CEU departments'
+                : 'Coordinate approved equipment reservations and physical release handoffs'}
+          </p>
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
@@ -173,7 +185,7 @@ const RequestsPage = () => {
                 )}
 
                 {/* Approver / Logistics actions */}
-                {item.status === 'Pending' && (
+                {item.status === 'Pending' && canApprove && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginTop: '0.25rem' }}>
                     <button onClick={() => handleApprove(item.id)} className="btn btn-success btn-sm">
                       <Check size={14} /> Approve Request
@@ -192,16 +204,26 @@ const RequestsPage = () => {
                   </div>
                 )}
 
+                {item.status === 'Pending' && !canApprove && (
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                    Awaiting review by an Approver or Administrator.
+                  </div>
+                )}
+
                 {item.status === 'Approved' && (
                   <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                    <button 
-                      onClick={() => navigate(`/qr-scan?assetId=${item.assetId}`)} 
-                      className="btn btn-primary btn-sm"
-                    >
-                      <ArrowRightLeft size={14} /> Release Asset Now (Handoff)
-                    </button>
+                    {canRelease && (
+                      <button 
+                        onClick={() => navigate(`/qr-scan?assetId=${item.assetId}`)} 
+                        className="btn btn-primary btn-sm"
+                      >
+                        <ArrowRightLeft size={14} /> Release Asset Now (Handoff)
+                      </button>
+                    )}
                     <span style={{ fontSize: '0.75rem', color: 'var(--color-secondary)' }}>
-                      Approved and reserved. Ready for handoff checkout.
+                      {canRelease
+                        ? 'Approved and reserved. Ready for handoff checkout.'
+                        : 'Approved! Proceed to the Property Office for QR checkout handoff.'}
                     </span>
                   </div>
                 )}

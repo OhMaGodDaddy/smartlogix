@@ -10,11 +10,49 @@ import {
   BarChart3, 
   Settings, 
   HelpCircle, 
-  Plus 
+  Plus,
+  CalendarPlus,
+  CheckSquare
 } from 'lucide-react';
+import { useAuth, ROLES } from '../context/AuthContext';
 
 const Sidebar = () => {
   const navigate = useNavigate();
+  const { activeRole, user } = useAuth();
+
+  const isAdmin = activeRole === ROLES.ADMIN;
+  const isOfficer = activeRole === ROLES.OFFICER;
+  const isBorrower = activeRole === ROLES.BORROWER;
+  const isApprover = activeRole === ROLES.APPROVER;
+
+  const canManageAssets = isAdmin || isOfficer;
+  const canViewVehicles = isAdmin || isOfficer || isApprover;
+  const canViewAnalytics = isAdmin || isOfficer || isApprover;
+
+  const renderPrimaryCta = () => {
+    if (isBorrower) {
+      return (
+        <button onClick={() => navigate('/request')} className="btn-new-asset">
+          <CalendarPlus size={18} />
+          <span>Request Asset</span>
+        </button>
+      );
+    }
+    if (isApprover) {
+      return (
+        <button onClick={() => navigate('/requests')} className="btn-new-asset">
+          <CheckSquare size={18} />
+          <span>Review Queue</span>
+        </button>
+      );
+    }
+    return (
+      <button onClick={() => navigate('/inventory?action=new')} className="btn-new-asset">
+        <Plus size={18} />
+        <span>New Asset</span>
+      </button>
+    );
+  };
 
   return (
     <aside className="sidebar">
@@ -27,61 +65,81 @@ const Sidebar = () => {
         </div>
       </div>
 
+      {/* Active Role Summary Pill */}
+      <div style={{ padding: '0 1rem 0.5rem 1rem' }}>
+        <div style={{
+          padding: '0.5rem 0.75rem',
+          borderRadius: '8px',
+          background: 'var(--surface-low)',
+          border: '1px solid var(--border-color)',
+          fontSize: '0.75rem'
+        }}>
+          <div style={{ fontWeight: 700, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+            {activeRole}
+          </div>
+          <div style={{ color: 'var(--text-muted)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {user?.name}
+          </div>
+        </div>
+      </div>
+
       {/* CTA Button */}
       <div className="sidebar-cta">
-        <button 
-          onClick={() => navigate('/inventory')} 
-          className="btn-new-asset"
-        >
-          <Plus size={18} />
-          <span>New Asset</span>
-        </button>
+        {renderPrimaryCta()}
       </div>
 
       {/* Navigation Links */}
       <nav className="sidebar-menu">
         <NavLink to="/" end className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
           <LayoutDashboard size={18} />
-          <span>Dashboard</span>
+          <span>
+            {isAdmin ? 'Admin Console' : isOfficer ? 'Officer Workspace' : isApprover ? 'Approver Portal' : 'My Portal'}
+          </span>
         </NavLink>
 
         <NavLink to="/inventory" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
           <Package size={18} />
-          <span>Inventory</span>
-        </NavLink>
-
-        <NavLink to="/logbook" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
-          <BookOpen size={18} />
-          <span>Logbook</span>
+          <span>{isBorrower ? 'Browse Equipment' : 'Inventory Catalog'}</span>
         </NavLink>
 
         <NavLink to="/requests" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
           <FileCheck size={18} />
-          <span>Requests</span>
+          <span>{isBorrower ? 'My Requests' : isApprover ? 'Approval Queue' : 'Requests & Queue'}</span>
         </NavLink>
 
-        <NavLink to="/vehicles" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
-          <Truck size={18} />
-          <span>Vehicles</span>
+        <NavLink to="/logbook" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+          <BookOpen size={18} />
+          <span>{isBorrower ? 'My Loan History' : 'Digital Logbook'}</span>
         </NavLink>
+
+        {canViewVehicles && (
+          <NavLink to="/vehicles" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+            <Truck size={18} />
+            <span>Fleet Vehicles</span>
+          </NavLink>
+        )}
 
         <NavLink to="/qr-scan" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
           <MapPin size={18} />
-          <span>Tracking / QR</span>
+          <span>{canManageAssets ? 'QR Handoff / Scan' : 'QR Asset Lookup'}</span>
         </NavLink>
 
-        <NavLink to="/analytics" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
-          <BarChart3 size={18} />
-          <span>Reports</span>
-        </NavLink>
+        {canViewAnalytics && (
+          <NavLink to="/analytics" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+            <BarChart3 size={18} />
+            <span>Analytics & Reports</span>
+          </NavLink>
+        )}
       </nav>
 
       {/* Footer Navigation */}
       <div className="sidebar-footer">
-        <NavLink to="/admin" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
-          <Settings size={18} />
-          <span>Settings</span>
-        </NavLink>
+        {isAdmin && (
+          <NavLink to="/overview" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+            <Settings size={18} />
+            <span>Global Overview</span>
+          </NavLink>
+        )}
         <a href="#support" onClick={(e) => { e.preventDefault(); alert('SmartLogix Support System: support@smartlogix.org'); }} className="sidebar-link">
           <HelpCircle size={18} />
           <span>Support</span>

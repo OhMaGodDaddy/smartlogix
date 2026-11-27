@@ -17,7 +17,8 @@ import {
 } from 'lucide-react';
 import StatCard from '../components/StatCard';
 import { apiService } from '../services/api';
-import { fmtDate, statusBadge } from '../utils/format';
+import { fmtDate } from '../utils/format';
+import { useAuth, ROLES } from '../context/AuthContext';
 
 const FLEET_STATUSES = ['Available', 'In Transit', 'Maintenance', 'Out of Service'];
 
@@ -29,6 +30,8 @@ const CEU_DRIVER_PRESETS = [
 ];
 
 const VehiclesPage = () => {
+  const { activeRole } = useAuth();
+  const canManageFleet = activeRole === ROLES.ADMIN || activeRole === ROLES.OFFICER;
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -138,9 +141,11 @@ const VehiclesPage = () => {
           <h1 className="page-title">Fleet & Vehicle Management</h1>
           <p className="page-subtitle">Centro Escolar University Official Transport, Shuttles, and Logistics Fleet</p>
         </div>
-        <button onClick={() => setIsModalOpen(true)} className="btn btn-primary">
-          <Plus size={16} /> Add Fleet Vehicle
-        </button>
+        {canManageFleet && (
+          <button onClick={() => setIsModalOpen(true)} className="btn btn-primary">
+            <Plus size={16} /> Add Fleet Vehicle
+          </button>
+        )}
       </div>
 
       {/* KPI Stats Cards */}
@@ -281,14 +286,18 @@ const VehiclesPage = () => {
                         ) : '—'}
                       </td>
                       <td>
-                        <select 
-                          value={vehicle.fleetStatus}
-                          onChange={e => handleStatusChange(vehicle, e.target.value)}
-                          className={`badge ${badgeClass}`}
-                          style={{ border: 'none', cursor: 'pointer', outline: 'none', padding: '0.3rem 0.6rem', fontWeight: 700, fontSize: '0.78rem' }}
-                        >
-                          {FLEET_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
+                        {canManageFleet ? (
+                          <select 
+                            value={vehicle.fleetStatus}
+                            onChange={e => handleStatusChange(vehicle, e.target.value)}
+                            className={`badge ${badgeClass}`}
+                            style={{ border: 'none', cursor: 'pointer', outline: 'none', padding: '0.3rem 0.6rem', fontWeight: 700, fontSize: '0.78rem' }}
+                          >
+                            {FLEET_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        ) : (
+                          <span className={`badge ${badgeClass}`}>{vehicle.fleetStatus}</span>
+                        )}
                       </td>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}>
@@ -303,13 +312,15 @@ const VehiclesPage = () => {
                         {fmtDate(vehicle.nextMaintenanceDate)}
                       </td>
                       <td style={{ textAlign: 'right' }}>
-                        <button 
-                          onClick={() => handleDelete(vehicle)}
-                          className="icon-btn" 
-                          title="Delete vehicle from fleet"
-                        >
-                          <Trash2 size={16} color="var(--color-error)" />
-                        </button>
+                        {canManageFleet && (
+                          <button 
+                            onClick={() => handleDelete(vehicle)}
+                            className="icon-btn" 
+                            title="Delete vehicle from fleet"
+                          >
+                            <Trash2 size={16} color="var(--color-error)" />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );

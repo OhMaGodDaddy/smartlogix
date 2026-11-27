@@ -4,15 +4,25 @@ import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import NotificationDropdown from './NotificationDropdown';
 
-const Navbar = ({ title = 'Dashboard Overview' }) => {
+const ROLE_PORTAL_TITLES = {
+  'Administrator': 'Administrator System Control',
+  'Logistics/Property Officer': 'Logistics & Property Officer Workspace',
+  'Requester/Borrower': 'Borrower & Student Portal',
+  'Approver': 'Approver Review Portal'
+};
+
+const Navbar = ({ title }) => {
   const { theme, toggleTheme } = useTheme();
   const { user, activeRole, switchRole, ROLES } = useAuth();
+  const displayTitle = title || ROLE_PORTAL_TITLES[activeRole] || 'Dashboard Overview';
 
   return (
     <header className="topbar">
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)' }}>{title}</h2>
-        <span className="badge badge-info" style={{ fontSize: '0.72rem', fontWeight: 700 }}>CEU Campus</span>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)' }}>{displayTitle}</h2>
+        <span className="badge badge-info" style={{ fontSize: '0.72rem', fontWeight: 700 }}>
+          {user?.name} • {user?.department || 'CEU Campus'}
+        </span>
         
         <div className="search-box">
           <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />

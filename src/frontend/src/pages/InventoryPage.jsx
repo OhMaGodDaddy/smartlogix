@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { 
   Search, 
   QrCode, 
@@ -11,16 +11,21 @@ import {
   Printer,
   Clock,
   ArrowRightLeft,
-  Package
+  Package,
+  CalendarPlus
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { apiService } from '../services/api';
 import { statusBadge, fmtDate, ASSET_CONDITIONS } from '../utils/format';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, ROLES } from '../context/AuthContext';
 
 const InventoryPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { user, activeRole } = useAuth();
+
+  const canManageAssets = activeRole === ROLES.ADMIN || activeRole === ROLES.OFFICER;
+  const isBorrower = activeRole === ROLES.BORROWER;
 
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -270,9 +275,15 @@ const InventoryPage = () => {
             </select>
           </div>
 
-          <button onClick={() => setIsNewModalOpen(true)} className="btn btn-primary">
-            <Plus size={16} /> New Asset
-          </button>
+          {canManageAssets ? (
+            <button onClick={() => setIsNewModalOpen(true)} className="btn btn-primary">
+              <Plus size={16} /> New Asset
+            </button>
+          ) : (
+            <button onClick={() => navigate('/request')} className="btn btn-primary">
+              <CalendarPlus size={16} /> Request Equipment
+            </button>
+          )}
         </div>
 
         {/* Assets Table Container */}
@@ -345,13 +356,15 @@ const InventoryPage = () => {
                           >
                             <Printer size={15} />
                           </button>
-                          <button 
-                            className="icon-btn" 
-                            title="Delete"
-                            onClick={(e) => { e.stopPropagation(); handleDelete(asset); }}
-                          >
-                            <Trash2 size={15} color="var(--color-error)" />
-                          </button>
+                          {canManageAssets && (
+                            <button 
+                              className="icon-btn" 
+                              title="Delete"
+                              onClick={(e) => { e.stopPropagation(); handleDelete(asset); }}
+                            >
+                              <Trash2 size={15} color="var(--color-error)" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -400,16 +413,21 @@ const InventoryPage = () => {
             </div>
           </div>
 
-          {/* Checkout & Return Actions */}
+          {/* Checkout, Return & Reserve Actions */}
           <div style={{ display: 'flex', gap: '0.5rem' }}>
-            {selectedAsset.status === 'Available' && (
+            {canManageAssets && selectedAsset.status === 'Available' && (
               <button onClick={() => setIsCheckoutModalOpen(true)} className="btn btn-primary" style={{ flex: 1 }}>
-                <ArrowRightLeft size={15} /> Check Out (Borrow)
+                <ArrowRightLeft size={15} /> Check Out (Release)
               </button>
             )}
-            {selectedAsset.status === 'Borrowed' && (
+            {canManageAssets && selectedAsset.status === 'Borrowed' && (
               <button onClick={() => setIsReturnModalOpen(true)} className="btn btn-success" style={{ flex: 1 }}>
                 <RotateCcw size={15} /> Return Asset
+              </button>
+            )}
+            {(isBorrower || !canManageAssets) && selectedAsset.status === 'Available' && (
+              <button onClick={() => navigate(`/request?assetId=${selectedAsset.id}`)} className="btn btn-primary" style={{ flex: 1 }}>
+                <CalendarPlus size={15} /> Request / Reserve Asset
               </button>
             )}
           </div>

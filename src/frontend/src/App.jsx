@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
 import Layout from './components/Layout';
+import DashboardRouter from './pages/DashboardRouter';
 import DashboardOverviewPage from './pages/DashboardOverviewPage';
 import InventoryPage from './pages/InventoryPage';
 import LogbookPage from './pages/LogbookPage';
@@ -21,7 +22,8 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Layout />}>
-              <Route index element={<DashboardOverviewPage />} />
+              <Route index element={<DashboardRouter />} />
+              <Route path="overview" element={<DashboardOverviewPage />} />
               <Route path="inventory" element={<InventoryPage />} />
               <Route path="logbook" element={<LogbookPage />} />
               <Route path="requests" element={<RequestsPage />} />

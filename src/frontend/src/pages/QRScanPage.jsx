@@ -4,12 +4,13 @@ import { QrCode, Camera, ShieldCheck, CheckCircle2, ArrowRightLeft, Plus, Clock 
 import { QRCodeSVG } from 'qrcode.react';
 import { apiService } from '../services/api';
 import { statusBadge, ASSET_CONDITIONS } from '../utils/format';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, ROLES } from '../context/AuthContext';
 
 const QRScanPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, activeRole } = useAuth();
+  const canProcessHandoff = activeRole === ROLES.ADMIN || activeRole === ROLES.OFFICER;
 
   const queryRef = searchParams.get('qrRef') || searchParams.get('assetId') || '';
 
@@ -218,7 +219,7 @@ const QRScanPage = () => {
                   <div>QR Ref: <code style={{ color: 'var(--color-primary)' }}>{scannedAsset.qrCodeRef}</code></div>
                 </div>
 
-                {scannedAsset.status === 'Available' && (
+                {canProcessHandoff && scannedAsset.status === 'Available' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     <div className="form-group" style={{ marginBottom: 0 }}>
                       <label className="form-label">Borrower Name</label>
@@ -248,7 +249,17 @@ const QRScanPage = () => {
                   </div>
                 )}
 
-                {scannedAsset.status === 'Borrowed' && (
+                {!canProcessHandoff && scannedAsset.status === 'Available' && (
+                  <button
+                    onClick={() => navigate(`/request?assetId=${scannedAsset.id}`)}
+                    className="btn btn-primary"
+                    style={{ width: '100%' }}
+                  >
+                    Request / Reserve This Asset
+                  </button>
+                )}
+
+                {canProcessHandoff && scannedAsset.status === 'Borrowed' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     <div className="form-group" style={{ marginBottom: 0 }}>
                       <label className="form-label">Condition at Return</label>
@@ -266,6 +277,12 @@ const QRScanPage = () => {
                     >
                       <CheckCircle2 size={16} /> Confirm Asset Return (Check-In)
                     </button>
+                  </div>
+                )}
+
+                {!canProcessHandoff && scannedAsset.status === 'Borrowed' && (
+                  <div className="alert alert-info">
+                    This asset is currently checked out to <strong>{scannedAsset.currentHolderName || 'a borrower'}</strong>. Contact a Logistics Officer to process physical return check-in.
                   </div>
                 )}
 

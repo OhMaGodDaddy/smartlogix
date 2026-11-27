@@ -1,32 +1,18 @@
 import React from 'react';
 import { QrCode, MapPin, Tag, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { statusBadge } from '../utils/format';
 
-const AssetCard = ({ asset, onScan }) => {
+const AssetCard = ({ asset }) => {
   const navigate = useNavigate();
-
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'Available':
-        return <span className="badge badge-available">● Available</span>;
-      case 'Borrowed':
-        return <span className="badge badge-borrowed">● Borrowed</span>;
-      case 'Reserved':
-        return <span className="badge badge-reserved">● Reserved</span>;
-      case 'Maintenance':
-        return <span className="badge badge-maintenance">● Maintenance</span>;
-      default:
-        return <span className="badge badge-pending">● {status}</span>;
-    }
-  };
 
   return (
     <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="glass-card-header">
-        <span className="badge" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)' }}>
+        <span className="badge badge-muted">
           {asset.assetTag}
         </span>
-        {getStatusBadge(asset.status)}
+        <span className={`badge ${statusBadge(asset.status)}`}>● {asset.status}</span>
       </div>
 
       <h3 style={{ fontSize: '1.15rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.4rem' }}>
@@ -38,16 +24,16 @@ const AssetCard = ({ asset, onScan }) => {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          <Tag size={14} color="#a5b4fc" />
+          <Tag size={14} color="var(--color-primary)" />
           <span>Category: <strong style={{ color: 'var(--text-secondary)' }}>{asset.category}</strong></span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          <MapPin size={14} color="#f472b6" />
+          <MapPin size={14} color="var(--color-primary)" />
           <span>Location: <strong style={{ color: 'var(--text-secondary)' }}>{asset.location}</strong></span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          <ShieldCheck size={14} color="#34d399" />
-          <span>Condition: <strong style={{ color: '#34d399' }}>{asset.condition}</strong></span>
+          <ShieldCheck size={14} color="var(--color-secondary)" />
+          <span>Condition: <strong style={{ color: 'var(--color-secondary)' }}>{asset.condition}</strong></span>
         </div>
       </div>
 

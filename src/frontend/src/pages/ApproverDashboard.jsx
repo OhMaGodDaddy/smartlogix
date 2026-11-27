@@ -10,6 +10,7 @@ const ApproverDashboard = () => {
   const [reservations, setReservations] = useState([]);
   const [rejectReason, setRejectReason] = useState({});
   const [loading, setLoading] = useState(true);
+  const [actionError, setActionError] = useState('');
 
   useEffect(() => {
     loadReservations();
@@ -23,18 +24,17 @@ const ApproverDashboard = () => {
       .finally(() => setLoading(false));
   };
 
-  const handleApprove = (id) => {
-    apiService.updateReservationStatus(id, 'Approved', '', user?.id || 'approver').then(() => {
-      loadReservations();
-    });
+  const decide = (id, status, reason) => {
+    setActionError('');
+    apiService.updateReservationStatus(id, status, reason, user?.id || 'approver')
+      .then(loadReservations)
+      .catch((err) => setActionError(err.message));
   };
 
-  const handleReject = (id) => {
-    const reason = rejectReason[id] || 'Scheduling conflict or resource unavailable';
-    apiService.updateReservationStatus(id, 'Rejected', reason, user?.id || 'approver').then(() => {
-      loadReservations();
-    });
-  };
+  const handleApprove = (id) => decide(id, 'Approved', '');
+
+  const handleReject = (id) =>
+    decide(id, 'Rejected', rejectReason[id] || 'Scheduling conflict or resource unavailable');
 
   const pendingList = reservations.filter(r => r.status === 'Pending');
   const approvedList = reservations.filter(r => r.status === 'Approved');
@@ -57,6 +57,8 @@ const ApproverDashboard = () => {
         <StatCard title="Approved Requests" value={loading ? '—' : approvedList.length} icon={CheckCircle} color="#10b981" />
         <StatCard title="Rejected Requests" value={loading ? '—' : rejectedList.length} icon={XCircle} color="#ef4444" />
       </div>
+
+      {actionError && <div className="alert alert-error" role="alert">{actionError}</div>}
 
       {/* Pending Approvals Table */}
       <div className="glass-card" style={{ marginBottom: '2rem' }}>

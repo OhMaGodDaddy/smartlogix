@@ -8,8 +8,9 @@ import {
   FileText,
   ArrowRightLeft
 } from 'lucide-react';
+import PageHeader from '../components/PageHeader';
 import { apiService } from '../services/api';
-import { fmtDateTime, statusBadge } from '../utils/format';
+import { fmtDateTime, statusBadge, isOwnReservation } from '../utils/format';
 import { useAuth, ROLES } from '../context/AuthContext';
 
 const RequestsPage = () => {
@@ -20,7 +21,8 @@ const RequestsPage = () => {
   const canRelease = activeRole === ROLES.ADMIN || activeRole === ROLES.OFFICER;
   const isBorrower = activeRole === ROLES.BORROWER;
 
-  const [reservations, setReservations] = useState([]);
+  const [allReservations, setReservations] = useState([]);
+  const reservations = isBorrower ? allReservations.filter(r => isOwnReservation(r, user)) : allReservations;
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('Pending');
   const [rejectReason, setRejectReason] = useState({});
@@ -74,23 +76,18 @@ const RequestsPage = () => {
   return (
     <div>
       {/* Header & Tabs */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <h1 className="page-title">
-            {isBorrower ? 'My Resource Requests' : canApprove ? 'Approver Reservation Queue' : 'Requests & Reservations'}
-          </h1>
-          <p className="page-subtitle">
-            {isBorrower
-              ? `Track reservation requests submitted as ${user?.name} and check approval status`
-              : canApprove
-                ? 'Review, approve, or reject pending borrowing requests across CEU departments'
-                : 'Coordinate approved equipment reservations and physical release handoffs'}
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+      <PageHeader
+        title={isBorrower ? 'My Resource Requests' : canApprove ? 'Approver Reservation Queue' : 'Requests & Reservations'}
+        subtitle={
+          isBorrower
+            ? `Track reservation requests submitted as ${user?.name} and check approval status`
+            : canApprove
+              ? 'Review, approve, or reject pending borrowing requests across CEU departments'
+              : 'Coordinate approved equipment reservations and physical release handoffs'
+        }
+      >
           {/* Status Tabs */}
-          <div style={{ display: 'flex', backgroundColor: 'var(--surface-container)', padding: '0.25rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+          <div className="tab-group">
             {[
               { id: 'Pending', label: `Pending (${pendingCount})` },
               { id: 'Approved', label: `Approved (${approvedCount})` },
@@ -116,8 +113,7 @@ const RequestsPage = () => {
           <button onClick={() => navigate('/request')} className="btn btn-primary">
             <Plus size={16} /> New Request
           </button>
-        </div>
-      </div>
+      </PageHeader>
 
       {actionError && <div className="alert alert-error" style={{ marginBottom: '1rem' }}>{actionError}</div>}
 

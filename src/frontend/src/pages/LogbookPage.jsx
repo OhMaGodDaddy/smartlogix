@@ -8,15 +8,20 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { apiService } from '../services/api';
-import { fmtDateTime, isOverdue, isOpenLoan, statusBadge, downloadCsv } from '../utils/format';
+import { fmtDateTime, isOverdue, isOpenLoan, isOwnLoan, statusBadge, downloadCsv, ASSET_CONDITIONS } from '../utils/format';
 import { useAuth, ROLES } from '../context/AuthContext';
+import { useFeedback } from '../context/FeedbackContext';
 
 const LogbookPage = () => {
   const navigate = useNavigate();
-  const { activeRole } = useAuth();
+  const { user, activeRole } = useAuth();
+  const { notify, confirm } = useFeedback();
   const canProcessReturns = activeRole === ROLES.ADMIN || activeRole === ROLES.OFFICER;
+  const isBorrower = activeRole === ROLES.BORROWER;
 
-  const [transactions, setTransactions] = useState([]);
+  const [allTransactions, setTransactions] = useState([]);
+  // Everything below (counts, table, CSV export) works from the records this role may see.
+  const transactions = isBorrower ? allTransactions.filter(t => isOwnLoan(t, user)) : allTransactions;
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -54,7 +59,7 @@ const LogbookPage = () => {
 
   const handleExportCsv = () => {
     if (transactions.length === 0) {
-      alert('No logbook records to export.');
+      notify('No logbook records to export.', 'info');
       return;
     }
     const headers = ['Receipt Ref', 'Borrower', 'Asset Name', 'Release Date', 'Expected Return', 'Actual Return', 'Condition Release', 'Condition Return', 'Status', 'Signature'];
@@ -74,11 +79,24 @@ const LogbookPage = () => {
   };
 
   const handleReturn = async (trx) => {
+    const condition = await confirm({
+      title: 'Confirm return',
+      message: `Check in ${trx.assetName || 'this asset'} from ${trx.borrowerName || 'the borrower'}. "Requires Repair" sends it to maintenance.`,
+      confirmLabel: 'Complete check-in',
+      field: {
+        label: 'Condition at return',
+        options: ASSET_CONDITIONS,
+        // Start from how it left, so the condition isn't changed by accident.
+        defaultValue: ASSET_CONDITIONS.includes(trx.conditionAtRelease) ? trx.conditionAtRelease : 'Good'
+      }
+    });
+    if (!condition) return;
     try {
-      await apiService.returnTransaction(trx.id, { conditionAtReturn: 'Good' });
+      await apiService.returnTransaction(trx.id, { conditionAtReturn: condition });
+      notify(`${trx.assetName || 'Asset'} was returned.`);
       await loadTransactions();
     } catch (err) {
-      alert(`Cannot return asset: ${err.message}`);
+      notify(`Cannot return asset: ${err.message}`, 'error');
     }
   };
 

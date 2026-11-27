@@ -48,7 +48,7 @@ const NotificationDropdown = () => {
   };
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div className="notification-wrapper" style={{ position: 'relative' }}>
       <button 
         onClick={() => setIsOpen(!isOpen)}
         className="icon-btn"
@@ -78,7 +78,7 @@ const NotificationDropdown = () => {
       </button>
 
       {isOpen && (
-        <div className="glass-card" style={{
+        <div className="glass-card notification-panel" style={{
           position: 'absolute',
           right: 0,
           top: '46px',

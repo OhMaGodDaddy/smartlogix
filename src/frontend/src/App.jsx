@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
+import { FeedbackProvider } from './context/FeedbackContext';
 import Layout from './components/Layout';
 import DashboardRouter from './pages/DashboardRouter';
 import DashboardOverviewPage from './pages/DashboardOverviewPage';
@@ -20,24 +21,26 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Layout />}>
-              <Route index element={<DashboardRouter />} />
-              <Route path="overview" element={<DashboardOverviewPage />} />
-              <Route path="inventory" element={<InventoryPage />} />
-              <Route path="logbook" element={<LogbookPage />} />
-              <Route path="requests" element={<RequestsPage />} />
-              <Route path="calendar" element={<CalendarPage />} />
-              <Route path="vehicles" element={<VehiclesPage />} />
-              <Route path="officer" element={<OfficerDashboard />} />
-              <Route path="analytics" element={<AnalyticsDashboard />} />
-              <Route path="qr-scan" element={<QRScanPage />} />
-              <Route path="request" element={<RequestFormPage />} />
-              <Route path="admin" element={<AdminDashboard />} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
+        <FeedbackProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Layout />}>
+                <Route index element={<DashboardRouter />} />
+                <Route path="overview" element={<DashboardOverviewPage />} />
+                <Route path="inventory" element={<InventoryPage />} />
+                <Route path="logbook" element={<LogbookPage />} />
+                <Route path="requests" element={<RequestsPage />} />
+                <Route path="calendar" element={<CalendarPage />} />
+                <Route path="vehicles" element={<VehiclesPage />} />
+                <Route path="officer" element={<OfficerDashboard />} />
+                <Route path="analytics" element={<AnalyticsDashboard />} />
+                <Route path="qr-scan" element={<QRScanPage />} />
+                <Route path="request" element={<RequestFormPage />} />
+                <Route path="admin" element={<AdminDashboard />} />
+              </Route>
+            </Routes>
+          </BrowserRouter>
+        </FeedbackProvider>
       </AuthProvider>
     </ThemeProvider>
   );

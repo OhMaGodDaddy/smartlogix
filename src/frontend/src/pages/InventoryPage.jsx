@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Search, 
   QrCode, 
@@ -15,14 +15,21 @@ import {
   CalendarPlus
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { createRoot } from 'react-dom/client';
+import { flushSync } from 'react-dom';
 import { apiService } from '../services/api';
-import { statusBadge, fmtDate, ASSET_CONDITIONS, ASSET_STATUSES } from '../utils/format';
+import { statusBadge, fmtDate, escapeHtml, ASSET_CONDITIONS, ASSET_STATUSES } from '../utils/format';
 import { useAuth, ROLES } from '../context/AuthContext';
+import { useFeedback } from '../context/FeedbackContext';
+
+// Keep in step with the .asset-drawer breakpoint in index.css.
+const DRAWER_OVERLAY_QUERY = '(max-width: 1100px)';
 
 const InventoryPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, activeRole } = useAuth();
+  const { notify, confirm } = useFeedback();
 
   const canManageAssets = activeRole === ROLES.ADMIN || activeRole === ROLES.OFFICER;
   const isBorrower = activeRole === ROLES.BORROWER;
@@ -68,14 +75,9 @@ const InventoryPage = () => {
       const data = await apiService.getAssets();
       const list = Array.isArray(data) ? data : [];
       setAssets(list);
-      if (selectedAsset) {
-        const refreshed = list.find(a => a.id === selectedAsset.id);
-        setSelectedAsset(refreshed || (list.length > 0 ? list[0] : null));
-      } else if (list.length > 0) {
-        setSelectedAsset(list[0]);
-      } else {
-        setSelectedAsset(null);
-      }
+      // Where the detail panel covers the table, only open it when the user picks an asset.
+      const fallback = window.matchMedia(DRAWER_OVERLAY_QUERY).matches ? null : list[0] || null;
+      setSelectedAsset((current) => (current && list.find(a => a.id === current.id)) || fallback);
     } catch (err) {
       setError(err.message || 'Failed to connect to backend service.');
     } finally {
@@ -86,6 +88,14 @@ const InventoryPage = () => {
   useEffect(() => {
     loadAssets();
   }, []);
+
+  // The top bar search arrives as ?q=term. The location key changes on every submit, so
+  // searching the same term again still applies it.
+  const { key: locationKey } = useLocation();
+  const queryTerm = searchParams.get('q');
+  useEffect(() => {
+    if (queryTerm !== null) setSearch(queryTerm);
+  }, [queryTerm, locationKey]);
 
   // Open modal if url has ?action=new
   useEffect(() => {
@@ -135,6 +145,7 @@ const InventoryPage = () => {
       });
       await loadAssets();
       setSelectedAsset(created);
+      notify(`${created.name} was registered.`);
     } catch (err) {
       setModalError(err.message);
     } finally {
@@ -157,6 +168,7 @@ const InventoryPage = () => {
       });
       setIsCheckoutModalOpen(false);
       setCheckoutData({ borrowerName: '', expectedReturnDate: '' });
+      notify(`${selectedAsset.name} was checked out.`);
       await loadAssets();
     } catch (err) {
       setModalError(err.message);
@@ -175,6 +187,7 @@ const InventoryPage = () => {
         conditionAtReturn: returnCondition
       });
       setIsReturnModalOpen(false);
+      notify(`${selectedAsset.name} was returned.`);
       await loadAssets();
     } catch (err) {
       setModalError(err.message);
@@ -184,12 +197,19 @@ const InventoryPage = () => {
   };
 
   const handleDelete = async (asset) => {
-    if (!window.confirm(`Are you sure you want to delete asset "${asset.name}" (${asset.assetTag})?`)) return;
+    const confirmed = await confirm({
+      title: 'Delete asset?',
+      message: `${asset.name} (${asset.assetTag}) will be removed from the inventory. This can't be undone.`,
+      confirmLabel: 'Delete asset',
+      danger: true
+    });
+    if (!confirmed) return;
     try {
       await apiService.deleteAsset(asset.id);
+      notify(`${asset.name} was deleted.`);
       await loadAssets();
     } catch (err) {
-      alert(`Cannot delete asset: ${err.message}`);
+      notify(`Cannot delete asset: ${err.message}`, 'error');
     }
   };
 
@@ -199,20 +219,34 @@ const InventoryPage = () => {
       await loadAssets();
       if (updated) setSelectedAsset(updated);
     } catch (err) {
-      alert(`Cannot update asset: ${err.message}`);
+      notify(`Cannot update asset: ${err.message}`, 'error');
     }
   };
 
   const handlePrintTag = (asset) => {
     const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
+    if (!printWindow) {
+      notify('Allow pop-ups for this site to print asset labels.', 'error');
+      return;
+    }
+    // Asset fields are typed in by users, so escape them before building the label's HTML.
+    const tag = escapeHtml(asset.assetTag);
+    const qrHolder = document.createElement('div');
+    const qrRoot = createRoot(qrHolder);
+    flushSync(() => qrRoot.render(
+      <QRCodeSVG value={asset.qrCodeRef || asset.assetTag} size={160} marginSize={4} />
+    ));
+    const qrSvg = qrHolder.innerHTML;
+    qrRoot.unmount();
     printWindow.document.write(`
+      <!doctype html>
       <html>
         <head>
-          <title>SmartLogix Tag - ${asset.assetTag}</title>
+          <meta charset="utf-8">
+          <title>SmartLogix Tag - ${tag}</title>
           <style>
             body { font-family: monospace; text-align: center; padding: 30px; }
-            .box { border: 2px dashed #000; padding: 20px; display: inline-block; border-radius: 8px; }
+            .box { border: 2px dashed #000; padding: 20px; display: inline-block; border-radius: 8px; max-width: 320px; }
             h2 { margin: 5px 0; font-size: 20px; }
             p { margin: 4px 0; color: #555; font-size: 14px; }
           </style>
@@ -220,24 +254,26 @@ const InventoryPage = () => {
         <body>
           <div class="box">
             <h2>SMARTLOGIX ASSET</h2>
-            <p><strong>${asset.assetTag}</strong></p>
-            <p>${asset.name}</p>
-            <p>Location: ${asset.location}</p>
+            ${qrSvg}
+            <p><strong>${tag}</strong></p>
+            <p>${escapeHtml(asset.name)}</p>
+            <p>Location: ${escapeHtml(asset.location)}</p>
             <p style="margin-top: 15px; font-size: 11px;">Scan with SmartLogix QR Reader</p>
           </div>
-          <script>window.print();</script>
         </body>
       </html>
     `);
     printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
   };
 
   return (
-    <div style={{ display: 'flex', gap: '1.25rem', height: 'calc(100vh - 100px)', overflow: 'hidden' }}>
+    <div className="inventory-layout">
       
       {/* Left Data Section */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem', overflow: 'hidden' }}>
-        
+      <div className="inventory-main">
+
         {/* Filters & Action Bar */}
         <div className="card-level-1" style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'flex-end' }}>
           <div style={{ flex: 1, minWidth: '200px' }}>
@@ -255,7 +291,7 @@ const InventoryPage = () => {
             </div>
           </div>
 
-          <div style={{ width: '180px' }}>
+          <div className="filter-field">
             <label style={{ fontSize: '0.8rem', fontWeight: 700, display: 'block', marginBottom: '0.25rem' }}>Category</label>
             <select 
               value={categoryFilter}
@@ -269,7 +305,7 @@ const InventoryPage = () => {
             </select>
           </div>
 
-          <div style={{ width: '180px' }}>
+          <div className="filter-field">
             <label style={{ fontSize: '0.8rem', fontWeight: 700, display: 'block', marginBottom: '0.25rem' }}>Status</label>
             <select 
               value={statusFilter}
@@ -394,7 +430,7 @@ const InventoryPage = () => {
 
       {/* Right Detail Sidebar Drawer */}
       {selectedAsset && (
-        <aside style={{ width: '360px', backgroundColor: 'var(--surface-lowest)', borderLeft: '1px solid var(--border-color)', overflowY: 'auto', display: 'flex', flexDirection: 'column', padding: '1.25rem', gap: '1rem', borderRadius: '8px' }}>
+        <aside className="asset-drawer">
           
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>

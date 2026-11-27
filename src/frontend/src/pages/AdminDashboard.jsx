@@ -85,7 +85,7 @@ const AdminDashboard = () => {
             <div>
               <h3 className="glass-card-title">Microservices Architecture Health</h3>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                Target Gateway: <code style={{ color: 'var(--color-primary)' }}>{API_BASE}</code>
+                Target Gateway: <code style={{ color: 'var(--color-primary)', overflowWrap: 'anywhere' }}>{API_BASE}</code>
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -126,10 +126,10 @@ const AdminDashboard = () => {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
             {serviceStatus.map(s => (
-              <div key={s.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: 'var(--surface-low)', borderRadius: '8px' }}>
+              <div key={s.name} style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: 'var(--surface-low)', borderRadius: '8px' }}>
                 <div>
                   <strong style={{ display: 'block', fontSize: '0.9rem' }}>{s.name}</strong>
-                  <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', display: 'block', fontFamily: 'monospace' }}>
+                  <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', display: 'block', fontFamily: 'monospace', overflowWrap: 'anywhere' }}>
                     {s.endpoint}
                   </span>
                   <span style={{ fontSize: '0.75rem', color: s.liveBackend ? 'var(--color-secondary)' : 'var(--text-muted)' }}>

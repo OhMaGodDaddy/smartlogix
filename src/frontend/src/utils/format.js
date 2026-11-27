@@ -33,6 +33,14 @@ export const isOverdue = (trx) =>
 
 export const isOpenLoan = (trx) => OPEN_LOAN_STATUSES.includes(trx.status);
 
+/**
+ * Whether a loan or reservation belongs to this user. Names are matched too, because a
+ * checkout typed in by an officer has no account ID. This only tidies what is on screen;
+ * real privacy has to be enforced by the server.
+ */
+export const isOwnLoan = (trx, user) => trx.borrowerId === user?.id || trx.borrowerName === user?.name;
+export const isOwnReservation = (res, user) => res.userId === user?.id || res.userName === user?.name;
+
 const BADGE_BY_STATUS = {
   Available: 'badge-success',
   Approved: 'badge-success',
@@ -70,6 +78,11 @@ export function countBy(items, getKey) {
     .map(([label, count]) => ({ label, count }))
     .sort((a, b) => b.count - a.count);
 }
+
+const HTML_ENTITIES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+
+/** Makes text safe to place inside hand-built HTML. */
+export const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => HTML_ENTITIES[char]);
 
 export function downloadCsv(filename, rows) {
   const escape = (cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`;

@@ -18,7 +18,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { apiService } from '../services/api';
-import { statusBadge, fmtDate, escapeHtml, ASSET_CONDITIONS } from '../utils/format';
+import { statusBadge, fmtDate, escapeHtml, ASSET_CONDITIONS, ASSET_STATUSES } from '../utils/format';
 import { useAuth, ROLES } from '../context/AuthContext';
 import { useFeedback } from '../context/FeedbackContext';
 
@@ -210,6 +210,16 @@ const InventoryPage = () => {
       await loadAssets();
     } catch (err) {
       notify(`Cannot delete asset: ${err.message}`, 'error');
+    }
+  };
+
+  const handleQuickUpdate = async (asset, updates) => {
+    try {
+      const updated = await apiService.updateAsset(asset.id, updates);
+      await loadAssets();
+      if (updated) setSelectedAsset(updated);
+    } catch (err) {
+      notify(`Cannot update asset: ${err.message}`, 'error');
     }
   };
 
@@ -450,7 +460,7 @@ const InventoryPage = () => {
           </div>
 
           {/* Checkout, Return & Reserve Actions */}
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             {canManageAssets && selectedAsset.status === 'Available' && (
               <button onClick={() => setIsCheckoutModalOpen(true)} className="btn btn-primary" style={{ flex: 1 }}>
                 <ArrowRightLeft size={15} /> Check Out (Release)
@@ -459,6 +469,15 @@ const InventoryPage = () => {
             {canManageAssets && selectedAsset.status === 'Borrowed' && (
               <button onClick={() => setIsReturnModalOpen(true)} className="btn btn-success" style={{ flex: 1 }}>
                 <RotateCcw size={15} /> Return Asset
+              </button>
+            )}
+            {canManageAssets && selectedAsset.status === 'Maintenance' && (
+              <button
+                onClick={() => handleQuickUpdate(selectedAsset, { status: 'Available', condition: 'Good' })}
+                className="btn btn-success"
+                style={{ flex: 1 }}
+              >
+                <RotateCcw size={15} /> Complete Repair → Set Available
               </button>
             )}
             {(isBorrower || !canManageAssets) && selectedAsset.status === 'Available' && (
@@ -492,10 +511,50 @@ const InventoryPage = () => {
 
           {/* Condition & Logistics Info */}
           <div style={{ padding: '0.85rem', backgroundColor: 'var(--surface-low)', borderRadius: '6px' }}>
-            <h4 style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>LOGISTICS & CONDITION</h4>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.4rem' }}>
+            <h4 style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.65rem' }}>LOGISTICS & CONDITION</h4>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem', marginBottom: '0.6rem' }}>
+              <span>Operational Status</span>
+              {canManageAssets && selectedAsset.status !== 'Borrowed' && selectedAsset.status !== 'Reserved' ? (
+                <select
+                  value={selectedAsset.status}
+                  onChange={(e) => {
+                    const nextStatus = e.target.value;
+                    const updates = { status: nextStatus };
+                    if (nextStatus === 'Available' && selectedAsset.condition === 'Requires Repair') {
+                      updates.condition = 'Good';
+                    }
+                    handleQuickUpdate(selectedAsset, updates);
+                  }}
+                  className={`badge ${statusBadge(selectedAsset.status)}`}
+                  style={{ border: 'none', cursor: 'pointer', outline: 'none', padding: '0.25rem 0.6rem', fontWeight: 700, fontSize: '0.78rem' }}
+                >
+                  {ASSET_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              ) : (
+                <span className={`badge ${statusBadge(selectedAsset.status)}`}>{selectedAsset.status}</span>
+              )}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem', marginBottom: '0.6rem' }}>
               <span>Condition</span>
-              <strong style={{ color: 'var(--color-secondary)' }}>● {selectedAsset.condition || 'Good'}</strong>
+              {canManageAssets ? (
+                <select
+                  value={selectedAsset.condition || 'Good'}
+                  onChange={(e) => {
+                    const nextCondition = e.target.value;
+                    const updates = { condition: nextCondition };
+                    if (nextCondition === 'Requires Repair' && selectedAsset.status === 'Available') {
+                      updates.status = 'Maintenance';
+                    }
+                    handleQuickUpdate(selectedAsset, updates);
+                  }}
+                  className="form-control"
+                  style={{ width: 'auto', padding: '0.2rem 0.5rem', fontSize: '0.8rem', fontWeight: 700 }}
+                >
+                  {ASSET_CONDITIONS.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              ) : (
+                <strong style={{ color: 'var(--color-secondary)' }}>● {selectedAsset.condition || 'Good'}</strong>
+              )}
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.4rem' }}>
               <span>Acquisition Date</span>
@@ -504,7 +563,7 @@ const InventoryPage = () => {
             {selectedAsset.acquisitionCost && (
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.4rem' }}>
                 <span>Acquisition Cost</span>
-                <strong>${parseFloat(selectedAsset.acquisitionCost).toLocaleString()}</strong>
+                <strong>₱{parseFloat(selectedAsset.acquisitionCost).toLocaleString()}</strong>
               </div>
             )}
           </div>

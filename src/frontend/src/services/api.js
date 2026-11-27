@@ -251,6 +251,14 @@ export const apiService = {
       };
       fallbackTransactions = [newTrx, ...fallbackTransactions];
       storage.set('transactions', fallbackTransactions);
+
+      if (data.reservationId) {
+        const linked = fallbackReservations.find(r => r.id === data.reservationId);
+        if (linked && linked.status === 'Approved') {
+          linked.status = 'Completed';
+          storage.set('reservations', fallbackReservations);
+        }
+      }
       return newTrx;
     }
   },

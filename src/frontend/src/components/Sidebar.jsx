@@ -12,7 +12,8 @@ import {
   HelpCircle, 
   Plus,
   CalendarPlus,
-  CheckSquare
+  CheckSquare,
+  Calendar
 } from 'lucide-react';
 import { useAuth, ROLES } from '../context/AuthContext';
 
@@ -105,6 +106,11 @@ const Sidebar = () => {
         <NavLink to="/requests" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
           <FileCheck size={18} />
           <span>{isBorrower ? 'My Requests' : isApprover ? 'Approval Queue' : 'Requests & Queue'}</span>
+        </NavLink>
+
+        <NavLink to="/calendar" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+          <Calendar size={18} />
+          <span>Resource Calendar</span>
         </NavLink>
 
         <NavLink to="/logbook" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>

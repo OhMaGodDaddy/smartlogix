@@ -12,14 +12,14 @@ import {
 
 const trimSlash = (value) => (value ? value.replace(/\/+$/, '') : '');
 
-export const API_BASE = trimSlash(import.meta.env.VITE_API_BASE_URL || '');
-const IS_PLACEHOLDER_URL = !API_BASE || API_BASE.includes('xxxx') || API_BASE.includes('localhost:5000');
+export const API_BASE = trimSlash(import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000');
+const IS_PLACEHOLDER_URL = !API_BASE || API_BASE.includes('xxxx');
 
 const SERVICES = {
-  AUTH: trimSlash(import.meta.env.VITE_AUTH_SERVICE_URL || (API_BASE ? `${API_BASE}/api/auth` : '')),
-  INVENTORY: trimSlash(import.meta.env.VITE_INVENTORY_SERVICE_URL || (API_BASE ? `${API_BASE}/api/inventory` : '')),
-  VEHICLE: trimSlash(import.meta.env.VITE_VEHICLE_SERVICE_URL || (API_BASE ? `${API_BASE}/api/vehicles` : '')),
-  NOTIFICATION: trimSlash(import.meta.env.VITE_NOTIFICATION_SERVICE_URL || (API_BASE ? `${API_BASE}/api/notifications` : ''))
+  AUTH: trimSlash(import.meta.env.VITE_AUTH_SERVICE_URL || `${API_BASE}/api/auth`),
+  INVENTORY: trimSlash(import.meta.env.VITE_INVENTORY_SERVICE_URL || `${API_BASE}/api/inventory`),
+  VEHICLE: trimSlash(import.meta.env.VITE_VEHICLE_SERVICE_URL || `${API_BASE}/api/vehicles`),
+  NOTIFICATION: trimSlash(import.meta.env.VITE_NOTIFICATION_SERVICE_URL || `${API_BASE}/api/notifications`)
 };
 
 // --- Local CEU Persistent Fallback Store ---
@@ -402,26 +402,70 @@ export const apiService = {
 
   getHealth: async () => {
     try {
-      return await request(API_BASE, '/health');
-    } catch {
-      return { status: 'ok', mode: 'Local CEU Persistent Fallback', database: 'ready' };
+      const data = await request(API_BASE, '/health');
+      return { ...data, liveGateway: true };
+    } catch (err) {
+      return {
+        status: 'fallback',
+        liveGateway: false,
+        mode: 'Local CEU Persistent Fallback',
+        database: 'localStorage',
+        error: err.message
+      };
     }
   },
 
   checkServices: async () => {
     const probes = [
-      ['auth-service', () => request(SERVICES.AUTH, '/users')],
-      ['inventory-service', () => request(SERVICES.INVENTORY, '/assets')],
-      ['vehicle-service', () => request(SERVICES.VEHICLE, '/vehicles')],
-      ['notification-service', () => request(SERVICES.NOTIFICATION, '/logs')]
+      ['auth-service', `${SERVICES.AUTH}/users`, () => request(SERVICES.AUTH, '/users')],
+      ['inventory-service', `${SERVICES.INVENTORY}/assets`, () => request(SERVICES.INVENTORY, '/assets')],
+      ['vehicle-service', `${SERVICES.VEHICLE}/vehicles`, () => request(SERVICES.VEHICLE, '/vehicles')],
+      ['notification-service', `${SERVICES.NOTIFICATION}/logs`, () => request(SERVICES.NOTIFICATION, '/logs')]
     ];
-    return Promise.all(probes.map(async ([name, probe]) => {
+
+    let gatewayHealth = null;
+    try {
+      gatewayHealth = await request(API_BASE, '/health');
+    } catch {
+      gatewayHealth = null;
+    }
+
+    return Promise.all(probes.map(async ([name, endpoint, probe]) => {
       const started = performance.now();
       try {
         await probe();
-        return { name, online: true, latency: Math.round(performance.now() - started) };
-      } catch {
-        return { name, online: !IS_PLACEHOLDER_URL, latency: 12, mode: 'CEU Datastore' };
+        return {
+          name,
+          endpoint,
+          online: true,
+          liveBackend: true,
+          mode: 'Live REST API + PostgreSQL',
+          latency: Math.round(performance.now() - started)
+        };
+      } catch (err) {
+        const latency = Math.round(performance.now() - started);
+        if (gatewayHealth) {
+          return {
+            name,
+            endpoint,
+            online: true,
+            liveBackend: false,
+            gatewayReachable: true,
+            mode: `API Gateway Up (DB: ${gatewayHealth.database || 'disconnected'}) → CEU Local Fallback`,
+            latency,
+            error: err.message
+          };
+        }
+        return {
+          name,
+          endpoint,
+          online: true,
+          liveBackend: false,
+          gatewayReachable: false,
+          mode: 'Offline → CEU Local Datastore Fallback',
+          latency,
+          error: err.message || 'Backend unreachable'
+        };
       }
     }));
   }
